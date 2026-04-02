@@ -156,9 +156,10 @@ fun MapScreen(
 
                 // 2. Location obtained — show "Download this area" card
                 uiState.currentLocation != null -> {
+                    val loc = uiState.currentLocation
                     DownloadAreaCard(
-                        lat        = uiState.currentLocation.first,
-                        lon        = uiState.currentLocation.second,
+                        lat        = loc.first,
+                        lon        = loc.second,
                         onDownload = { viewModel.downloadAroundLocation() },
                         modifier   = Modifier
                             .align(Alignment.BottomCenter)
