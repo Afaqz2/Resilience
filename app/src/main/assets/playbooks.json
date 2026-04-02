@@ -1,0 +1,68 @@
+[
+  {
+    "id": "first_aid_bleeding",
+    "category": "First Aid",
+    "title": "Controlling Severe Bleeding",
+    "summary": "How to stop life-threatening blood loss using direct pressure and tourniquets.",
+    "contentMarkdown": "## Controlling Severe Bleeding\n\n### Step 1 — Call for Help\nIf possible, call emergency services **before** starting treatment.\n\n### Step 2 — Apply Direct Pressure\n- Use a clean cloth, bandage, or any available fabric.\n- Press **firmly** on the wound — do not lift to check.\n- Maintain pressure for at least **10 minutes**.\n\n### Step 3 — Tourniquet (Limb Only)\nIf bleeding does not stop and the wound is on an arm or leg:\n1. Apply tourniquet **5–7 cm above** the wound (not on a joint).\n2. Tighten until bleeding stops.\n3. **Write the time applied** on the skin with a pen.\n4. Never remove a tourniquet in the field.\n\n### Step 4 — Keep the Person Calm\n- Lay the person down.\n- Elevate the injured limb if no fracture is suspected.\n- Keep them warm to prevent shock.\n\n> **Warning**: Do not remove embedded objects. Pack gauze around them.\n\n### Signs of Shock to Watch For\n- Pale, cold, or clammy skin\n- Rapid, weak pulse\n- Confusion or loss of consciousness",
+    "sourceOrganisation": "Red Cross",
+    "lastVerifiedDate": "2024-01-15",
+    "iconName": "HealthAndSafety",
+    "accentColor": "#E53935"
+  },
+  {
+    "id": "first_aid_burns",
+    "category": "First Aid",
+    "title": "Treating Burns",
+    "summary": "Immediate actions for minor and major burn injuries.",
+    "contentMarkdown": "## Treating Burns\n\n### Classify the Burn\n| Degree | Appearance | Action |\n|--------|------------|--------|\n| 1st | Red, no blisters | Cool water, no creams |\n| 2nd | Blisters, swelling | Cool water, loose dressing |\n| 3rd | White/charred | Seek immediate care |\n\n### For Minor Burns (1st & 2nd Degree)\n1. **Cool** the burn under clean running water for **10–20 minutes**.\n2. **Do NOT** use ice, butter, toothpaste, or oils.\n3. Cover loosely with a **non-fluffy sterile dressing**.\n4. Take a pain reliever if available.\n\n### For Major Burns (3rd Degree / Large Area)\n- Do **not** remove burned clothing stuck to skin.\n- Cover with a clean, moist cloth.\n- Treat for shock (keep warm, lay down, raise legs).\n- Get to medical care as fast as possible.\n\n### What to Avoid\n- Breaking blisters\n- Applying any household remedies\n- Tight bandages",
+    "sourceOrganisation": "WHO",
+    "lastVerifiedDate": "2024-03-10",
+    "iconName": "LocalFireDepartment",
+    "accentColor": "#FF6F00"
+  },
+  {
+    "id": "shelter_in_place",
+    "category": "Shelter",
+    "title": "Shelter-In-Place Protocol",
+    "summary": "How to safely shelter inside a building during an attack or chemical hazard.",
+    "contentMarkdown": "## Shelter-In-Place Protocol\n\n### When to Shelter In Place\n- Active artillery or air strike nearby\n- Chemical or biological hazard outside\n- Authorities issue a shelter-in-place order\n\n### Choose Your Room\n- An **interior room** above ground level (not basement if flooding risk).\n- Fewest windows and doors.\n- Ideally above the flood plain.\n\n### Seal the Room\n1. Close all windows and doors.\n2. Use **duct tape and plastic sheeting** to seal gaps around doors, windows, and vents.\n3. Seal fireplace dampers and exhaust fans.\n\n### Supplies to Have Ready\n- Water (at least 4 litres per person per day)\n- Food for 72 hours\n- Battery-powered or hand-crank radio\n- First aid kit\n- Flashlight with extra batteries\n- Medications\n\n### While Sheltered\n- Keep a battery-powered radio tuned to emergency broadcasts.\n- Check on other household members regularly.\n- Limit phone use to preserve battery.\n\n### When to Leave\n- Follow official instructions only.\n- Ventilate the room for a few minutes before leaving if a chemical event is suspected.",
+    "sourceOrganisation": "Ready.gov",
+    "lastVerifiedDate": "2023-11-01",
+    "iconName": "House",
+    "accentColor": "#1565C0"
+  },
+  {
+    "id": "go_bag_essentials",
+    "category": "Go-Bag",
+    "title": "72-Hour Go-Bag Checklist",
+    "summary": "Everything you need in a bug-out bag to survive 72 hours on the move.",
+    "contentMarkdown": "## 72-Hour Go-Bag Checklist\n\nPack your bag in advance. Refresh water and food every 6 months.\n\n### Water & Food\n- [ ] 2 litres of water per person\n- [ ] Water purification tablets\n- [ ] High-energy non-perishable food (energy bars, canned goods)\n- [ ] Manual can opener\n\n### Documents & Money\n- [ ] Photocopies of ID, passport, insurance cards\n- [ ] Small amount of cash (cards may not work)\n- [ ] USB drive with digital copies of documents\n\n### First Aid\n- [ ] Pre-stocked first aid kit\n- [ ] 7-day supply of prescription medications\n- [ ] Glasses / contact lenses + solution\n\n### Tools & Safety\n- [ ] Flashlight + extra batteries\n- [ ] Multi-tool or pocket knife\n- [ ] Whistle (signal for help)\n- [ ] Dust masks (N95 or better)\n- [ ] Waterproof matches or lighter\n- [ ] Emergency blanket (Mylar)\n\n### Communication\n- [ ] Battery-powered or hand-crank radio\n- [ ] Fully charged mobile phone + portable charger\n- [ ] Written list of key phone numbers\n\n### Clothing\n- [ ] One change of clothes per person\n- [ ] Sturdy, closed-toe shoes\n- [ ] Rain poncho\n\n### Special Needs\n- [ ] Infant formula / diapers (if needed)\n- [ ] Pet food (if applicable)\n- [ ] Comfort item for children",
+    "sourceOrganisation": "Red Cross",
+    "lastVerifiedDate": "2024-02-20",
+    "iconName": "Backpack",
+    "accentColor": "#558B2F"
+  },
+  {
+    "id": "water_purification",
+    "category": "Water",
+    "title": "Emergency Water Purification",
+    "summary": "Safe methods to make water drinkable without electricity or specialty equipment.",
+    "contentMarkdown": "## Emergency Water Purification\n\n> **Rule**: When in doubt, purify it.\n\n### Method 1 — Boiling (Most Reliable)\n1. Bring water to a **rolling boil** for at least **1 minute**.\n2. At altitudes above 2,000 m: boil for **3 minutes**.\n3. Let cool and store in a clean covered container.\n\n### Method 2 — Chemical Disinfection\n**Unscented household bleach (5–8% chlorine)**:\n- Clear water: **8 drops per litre**\n- Cloudy water: **16 drops per litre**\n- Stir, wait **30 minutes** before drinking.\n\n**Water purification tablets**:\n- Follow manufacturer's instructions.\n- Usually 1 tablet per litre; wait 30 minutes.\n\n### Method 3 — Solar Disinfection (SODIS)\n1. Fill a clear PET plastic bottle with filtered water.\n2. Place in direct sunlight for **6 hours** (or 2 days if cloudy).\n3. Effective against bacteria and viruses.\n\n### Pre-treating Cloudy Water\n- Filter through a cloth, coffee filter, or sand/gravel layers first.\n- This removes sediment and improves disinfection effectiveness.\n\n### Storage\n- Use clean, covered containers.\n- Do not touch the inside of the container.\n- Store away from sunlight and heat.",
+    "sourceOrganisation": "WHO",
+    "lastVerifiedDate": "2024-01-05",
+    "iconName": "WaterDrop",
+    "accentColor": "#0277BD"
+  },
+  {
+    "id": "cpr_basics",
+    "category": "First Aid",
+    "title": "CPR — Basic Life Support",
+    "summary": "Step-by-step hands-only and full CPR for adults.",
+    "contentMarkdown": "## CPR — Basic Life Support\n\n### Check Scene Safety First\nDo not approach if the area is unsafe (fire, unstable structure, etc.).\n\n### Check the Person\n1. Tap the shoulder firmly: **\"Are you okay?\"**\n2. If no response → Call emergency services immediately.\n\n### Hands-Only CPR (Untrained)\n1. Place heel of one hand on the **centre of the chest**.\n2. Place other hand on top, interlace fingers.\n3. Push **hard and fast** — at least **5 cm deep** at **100–120 beats/minute** (roughly the beat of *Stayin' Alive*).\n4. Do not stop until help arrives or the person recovers.\n\n### Full CPR (Trained)\n- **30 chest compressions** → **2 rescue breaths**\n- Tilt head back, lift chin, pinch nose, seal mouth, breathe for 1 second.\n- Repeat cycle.\n\n### Using an AED (If Available)\n1. Turn on the AED and follow voice prompts.\n2. Attach pads as shown on the diagrams.\n3. Clear everyone → press shock button if advised.\n4. Resume CPR immediately after shock.\n\n### For Children (1–8 years)\n- Use **one or two hands** depending on child's size.\n- Compress **4 cm deep**.\n- Use gentle rescue breaths.\n\n### Stop CPR If\n- Scene becomes unsafe\n- Person shows clear signs of life\n- AED is ready to analyse\n- Professional responders take over",
+    "sourceOrganisation": "Red Cross",
+    "lastVerifiedDate": "2024-03-01",
+    "iconName": "Favorite",
+    "accentColor": "#C62828"
+  }
+]
