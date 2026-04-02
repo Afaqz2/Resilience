@@ -97,7 +97,7 @@ class OfflineMapManager @Inject constructor(
             put("name", regionName)
         }.toString().toByteArray(Charsets.UTF_8)
 
-        offlineManager.downloadRegion(
+        offlineManager.createOfflineRegion(
             definition,
             metadata,
             object : OfflineManager.CreateOfflineRegionCallback {
