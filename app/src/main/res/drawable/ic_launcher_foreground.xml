@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App icon foreground — drawn on the 108×108dp adaptive icon canvas.
+  The central "safe zone" visible on all launchers is the inner 72×72dp
+  (18dp inset on every side).
+
+  Design: bold white shield + green ECG / pulse line
+    • Shield  → protection, offline-first safety
+    • Pulse   → resilience, life, emergency-readiness
+    • Colors  → white shield on navy, green pulse (#4CAF50)
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ── Shield body (white filled) ────────────────────────────────── -->
+    <!--
+      Pentagonal shield:
+        Peak at (54, 19)  — top-centre
+        Shoulders at (26, 31) and (82, 31)
+        Sides drop to  (26, 64) and (82, 64)
+        Rounded to bottom point at (54, 89)
+    -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M54,19
+            L84,31
+            Q85,32 85,34
+            L85,64
+            Q85,78 54,91
+            Q23,78 23,64
+            L23,34
+            Q23,32 24,31
+            Z" />
+
+    <!-- ── Shield inner shadow / depth ring (subtle dark tint) ───────── -->
+    <path
+        android:fillColor="#1A000000"
+        android:pathData="
+            M54,24
+            L80,35
+            Q81,36 81,38
+            L81,64
+            Q81,76 54,87
+            Q27,76 27,64
+            L27,38
+            Q27,36 28,35
+            Z" />
+
+    <!-- ── Shield inner face (clean white) ───────────────────────────── -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M54,26
+            L79,37
+            Q80,38 80,40
+            L80,64
+            Q80,75 54,85
+            Q28,75 28,64
+            L28,40
+            Q28,38 29,37
+            Z" />
+
+    <!-- ── ECG / heartbeat pulse line (green) ───────────────────────── -->
+    <!--
+      Runs horizontally across the shield centre at y≈55.
+      Classic EKG shape: flat → small blip → large spike → flat.
+    -->
+    <path
+        android:strokeColor="#4CAF50"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="
+            M34,55
+            L43,55
+            L46.5,47
+            L50,63
+            L54,36
+            L58,72
+            L61.5,55
+            L65,55
+            L74,55" />
+
+    <!-- ── Small circle dot at pulse peak (accent) ───────────────────── -->
+    <path
+        android:fillColor="#66BB6A"
+        android:pathData="M54,36 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+
+</vector>
