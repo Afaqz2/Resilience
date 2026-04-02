@@ -92,7 +92,7 @@ class MapTileCleanupWorker(
     private suspend fun listRegions(manager: OfflineManager): List<OfflineRegion> =
         suspendCancellableCoroutine { cont ->
             manager.listOfflineRegions(object : OfflineManager.ListOfflineRegionsCallback {
-                override fun onList(regions: Array<out OfflineRegion>?) =
+                override fun onList(regions: Array<OfflineRegion>?) =
                     cont.resume(regions?.toList() ?: emptyList())
                 override fun onError(error: String) = cont.resume(emptyList())
             })
