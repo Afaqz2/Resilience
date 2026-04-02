@@ -62,7 +62,7 @@ class MapTileCleanupWorker(
             if (staleRegions.isEmpty()) return Result.success()
 
             // Init MapLibre so OfflineManager is accessible
-            Mapbox.getInstance(context, "")
+            Mapbox.getInstance(context)
             val offlineManager = OfflineManager.getInstance(context)
             val liveRegions = listRegions(offlineManager)
 

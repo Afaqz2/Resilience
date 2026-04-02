@@ -141,7 +141,7 @@ fun MapLibreComposable(modifier: Modifier = Modifier) {
 
     val mapView = remember {
         // Mapbox.getInstance is a no-op if already called; safe to repeat.
-        Mapbox.getInstance(context, "")
+        Mapbox.getInstance(context)
         MapView(context)
     }
 

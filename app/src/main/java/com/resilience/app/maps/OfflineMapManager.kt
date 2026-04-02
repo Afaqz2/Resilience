@@ -62,7 +62,7 @@ class OfflineMapManager @Inject constructor(
 
     private val offlineManager: OfflineManager by lazy {
         // Initialize MapLibre SDK (no API key needed for open tile servers).
-        Mapbox.getInstance(context, "")
+        Mapbox.getInstance(context)
         OfflineManager.getInstance(context)
     }
 
