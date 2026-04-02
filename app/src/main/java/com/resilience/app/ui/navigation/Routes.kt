@@ -11,6 +11,7 @@ object Routes {
     const val PLAYBOOK_LIST   = "playbook_list"
     const val PLAYBOOK_DETAIL = "playbook_detail/{playbookId}"
     const val FAMILY_VAULT    = "family_vault"
+    const val MAPS            = "maps"
 
     fun playbookDetail(id: String) = "playbook_detail/$id"
 }

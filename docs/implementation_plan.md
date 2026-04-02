@@ -96,14 +96,14 @@ Initialize the Resilience Android project using the officially recommended tech 
 | `ui/maps/MapViewModel.kt` | Download state, progress %, manage list |
 | `workers/MapTileCleanupWorker.kt` | WorkManager worker to prune stale tile packs |
 
-### Checklist
-- `[ ]` Add MapLibre `AndroidView` wrapper composable.
-- `[ ]` Implement `OfflineManager.downloadRegion()` with bounding-box from city selector.
-- `[ ]` Persist region metadata (name, bbox, size, status) in Room.
-- `[ ]` Show download progress in a `LinearProgressIndicator` bottom sheet.
-- `[ ]` Support pause / resume / delete downloaded packs.
-- `[ ]` POI overlay: hospitals, water sources, shelters (from bundled GeoJSON).
-- `[ ]` One-tap "Share my location" — copies current Lat/Long as SMS-ready text.
-- `[ ]` Wire "Maps" nav grid button to `MapScreen`.
-- `[ ]` Add `WorkManager` cleanup job to prune packs older than 90 days.
+### Checklist ✅
+- `[x]` Add MapLibre `AndroidView` wrapper composable.
+- `[x]` Implement `OfflineManager.downloadRegion()` with bounding-box from city selector.
+- `[x]` Persist region metadata (name, bbox, size, status) in Room.
+- `[x]` Show download progress in a `LinearProgressIndicator` bottom sheet.
+- `[x]` Support pause / resume / delete downloaded packs.
+- `[x]` POI overlay: hospitals, water sources, shelters (from bundled GeoJSON).
+- `[x]` One-tap "Share my location" — copies current Lat/Long as SMS-ready text.
+- `[x]` Wire "Maps" nav grid button to `MapScreen`.
+- `[x]` Add `WorkManager` cleanup job to prune packs older than 90 days.
 

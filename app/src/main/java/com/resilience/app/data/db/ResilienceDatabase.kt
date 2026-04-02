@@ -5,9 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.resilience.app.data.db.dao.FamilyVaultDao
+import com.resilience.app.data.db.dao.OfflineRegionDao
 import com.resilience.app.data.db.dao.PlaybookDao
 import com.resilience.app.data.db.entity.FamilyMemberEntity
 import com.resilience.app.data.db.entity.MeetingPointEntity
+import com.resilience.app.data.db.entity.OfflineRegionEntity
 import com.resilience.app.data.db.entity.PlaybookEntity
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
@@ -20,20 +22,23 @@ import net.sqlcipher.database.SupportFactory
  *
  * Version history:
  *   1 → Sprint 2: playbooks, family_members, meeting_points
+ *   2 → Sprint 3: offline_regions
  */
 @Database(
     entities = [
         PlaybookEntity::class,
         FamilyMemberEntity::class,
-        MeetingPointEntity::class
+        MeetingPointEntity::class,
+        OfflineRegionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class ResilienceDatabase : RoomDatabase() {
 
     abstract fun playbookDao(): PlaybookDao
     abstract fun familyVaultDao(): FamilyVaultDao
+    abstract fun offlineRegionDao(): OfflineRegionDao
 
     companion object {
         private const val DB_NAME = "resilience.db"

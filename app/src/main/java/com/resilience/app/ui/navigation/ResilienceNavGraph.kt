@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.resilience.app.data.db.entity.PlaybookEntity
 import com.resilience.app.ui.dashboard.DashboardScreen
 import com.resilience.app.ui.familyvault.FamilyVaultScreen
+import com.resilience.app.ui.maps.MapScreen
 import com.resilience.app.ui.playbooks.PlaybookDetailScreen
 import com.resilience.app.ui.playbooks.PlaybookListScreen
 import com.resilience.app.ui.playbooks.PlaybookViewModel
@@ -33,7 +34,8 @@ fun ResilienceNavGraph(navController: NavHostController) {
         composable(Routes.DASHBOARD) {
             DashboardScreen(
                 onNavigateToPlaybooks   = { navController.navigate(Routes.PLAYBOOK_LIST) },
-                onNavigateToFamilyVault = { navController.navigate(Routes.FAMILY_VAULT) }
+                onNavigateToFamilyVault = { navController.navigate(Routes.FAMILY_VAULT) },
+                onNavigateToMaps        = { navController.navigate(Routes.MAPS) }
             )
         }
 
@@ -82,6 +84,11 @@ fun ResilienceNavGraph(navController: NavHostController) {
         // ── Family Vault ──────────────────────────────────────────────────
         composable(Routes.FAMILY_VAULT) {
             FamilyVaultScreen(onBack = { navController.popBackStack() })
+        }
+
+        // ── Maps ──────────────────────────────────────────────────────────
+        composable(Routes.MAPS) {
+            MapScreen(onBack = { navController.popBackStack() })
         }
     }
 }

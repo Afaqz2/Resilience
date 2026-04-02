@@ -1,0 +1,70 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [67.0822, 24.9056] },
+      "properties": { "name": "Jinnah Postgraduate Medical Centre", "type": "hospital", "city": "Karachi" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [67.0603, 24.8615] },
+      "properties": { "name": "Aga Khan University Hospital", "type": "hospital", "city": "Karachi" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [67.0299, 24.8607] },
+      "properties": { "name": "Civil Hospital Karachi", "type": "hospital", "city": "Karachi" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [67.1025, 24.8950] },
+      "properties": { "name": "Karachi Water Board Supply Point", "type": "water", "city": "Karachi" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [67.0650, 24.9100] },
+      "properties": { "name": "Expo Centre Emergency Shelter", "type": "shelter", "city": "Karachi" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [74.3587, 31.5204] },
+      "properties": { "name": "Services Hospital Lahore", "type": "hospital", "city": "Lahore" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [74.3294, 31.5497] },
+      "properties": { "name": "Mayo Hospital Lahore", "type": "hospital", "city": "Lahore" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [74.3480, 31.5600] },
+      "properties": { "name": "Lahore WASA Water Point", "type": "water", "city": "Lahore" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [74.3700, 31.5150] },
+      "properties": { "name": "Lahore Sports Complex Shelter", "type": "shelter", "city": "Lahore" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [73.0479, 33.7215] },
+      "properties": { "name": "PIMS Hospital Islamabad", "type": "hospital", "city": "Islamabad" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [73.0699, 33.7098] },
+      "properties": { "name": "Shifa International Hospital", "type": "hospital", "city": "Islamabad" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [73.0551, 33.7294] },
+      "properties": { "name": "CDA Water Supply Point", "type": "water", "city": "Islamabad" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [73.0800, 33.7300] },
+      "properties": { "name": "Jinnah Convention Centre Shelter", "type": "shelter", "city": "Islamabad" }
+    }
+  ]
+}

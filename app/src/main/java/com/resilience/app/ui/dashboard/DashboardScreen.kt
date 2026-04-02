@@ -28,7 +28,8 @@ import com.resilience.app.ui.theme.SafeReachOffWhite
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToPlaybooks: () -> Unit = {},
-    onNavigateToFamilyVault: () -> Unit = {}
+    onNavigateToFamilyVault: () -> Unit = {},
+    onNavigateToMaps: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -63,7 +64,8 @@ fun DashboardScreen(
             PrimaryNavigationGrid(
                 isCrisisMode = uiState.isCrisisMode,
                 onNavigateToPlaybooks = onNavigateToPlaybooks,
-                onNavigateToFamilyVault = onNavigateToFamilyVault
+                onNavigateToFamilyVault = onNavigateToFamilyVault,
+                onNavigateToMaps = onNavigateToMaps
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -226,7 +228,8 @@ fun EmergencyModeButton() {
 fun PrimaryNavigationGrid(
     isCrisisMode: Boolean,
     onNavigateToPlaybooks: () -> Unit = {},
-    onNavigateToFamilyVault: () -> Unit = {}
+    onNavigateToFamilyVault: () -> Unit = {},
+    onNavigateToMaps: () -> Unit = {}
 ) {
     data class NavItemDef(
         val label: String,
@@ -240,7 +243,7 @@ fun PrimaryNavigationGrid(
         NavItemDef("Family plan", Icons.Default.Group,           onClick = onNavigateToFamilyVault),
         NavItemDef("Inventory",   Icons.Default.Inventory),
         NavItemDef("Playbooks",   Icons.Default.MenuBook,        onClick = onNavigateToPlaybooks),
-        NavItemDef("Maps",        Icons.Default.Map),
+        NavItemDef("Maps",        Icons.Default.Map,             onClick = onNavigateToMaps),
         NavItemDef("Alerts",      Icons.Default.Notifications),
         NavItemDef("Settings",    Icons.Default.Settings)
     )
