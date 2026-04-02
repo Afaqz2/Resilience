@@ -156,7 +156,7 @@ fun MapScreen(
 
                 // 2. Location obtained — show "Download this area" card
                 uiState.currentLocation != null -> {
-                    val loc = uiState.currentLocation
+                    val loc = uiState.currentLocation!!
                     DownloadAreaCard(
                         lat        = loc.first,
                         lon        = loc.second,
