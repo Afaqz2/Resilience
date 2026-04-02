@@ -23,6 +23,7 @@ import net.sqlcipher.database.SupportFactory
  * Version history:
  *   1 → Sprint 2: playbooks, family_members, meeting_points
  *   2 → Sprint 3: offline_regions
+ *   3 → Sprint 3 patch: offline_regions.sizeBytes added
  */
 @Database(
     entities = [
@@ -31,7 +32,7 @@ import net.sqlcipher.database.SupportFactory
         MeetingPointEntity::class,
         OfflineRegionEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class ResilienceDatabase : RoomDatabase() {

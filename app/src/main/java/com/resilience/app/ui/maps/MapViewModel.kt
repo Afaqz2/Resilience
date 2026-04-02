@@ -26,19 +26,58 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.cos
 
+// ── POI legend data ────────────────────────────────────────────────────────
+
+data class PoiEntry(val name: String, val type: String, val city: String)
+
+/** All bundled POIs — mirrors poi_overlay.geojson exactly. */
+val BUNDLED_POIS = listOf(
+    // Karachi
+    PoiEntry("Jinnah Postgraduate Medical Centre", "hospital", "Karachi"),
+    PoiEntry("Aga Khan University Hospital",       "hospital", "Karachi"),
+    PoiEntry("Civil Hospital Karachi",             "hospital", "Karachi"),
+    PoiEntry("Karachi Water Board Supply Point",   "water",    "Karachi"),
+    PoiEntry("Expo Centre Emergency Shelter",      "shelter",  "Karachi"),
+    PoiEntry("Al-Habib Medical Store (Saddar)",    "shop",     "Karachi"),
+    PoiEntry("D-Watson Pharmacy (Gulshan)",        "shop",     "Karachi"),
+    PoiEntry("Imtiaz Super Store (DHA)",           "shop",     "Karachi"),
+    // Lahore
+    PoiEntry("Services Hospital Lahore",           "hospital", "Lahore"),
+    PoiEntry("Mayo Hospital Lahore",               "hospital", "Lahore"),
+    PoiEntry("Lahore WASA Water Point",            "water",    "Lahore"),
+    PoiEntry("Lahore Sports Complex Shelter",      "shelter",  "Lahore"),
+    PoiEntry("Fazal Din Pharmacy (Mall Road)",     "shop",     "Lahore"),
+    PoiEntry("Metro Cash & Carry (Gulberg)",       "shop",     "Lahore"),
+    PoiEntry("Al-Fatah General Store (Defence)",   "shop",     "Lahore"),
+    // Islamabad
+    PoiEntry("PIMS Hospital Islamabad",            "hospital", "Islamabad"),
+    PoiEntry("Shifa International Hospital",       "hospital", "Islamabad"),
+    PoiEntry("CDA Water Supply Point",             "water",    "Islamabad"),
+    PoiEntry("Jinnah Convention Centre Shelter",   "shelter",  "Islamabad"),
+    PoiEntry("Shaheen Chemist (Blue Area)",        "shop",     "Islamabad"),
+    PoiEntry("Carrefour (F-10 Markaz)",            "shop",     "Islamabad"),
+    PoiEntry("Sunday Bazaar Emergency Supplies",   "shop",     "Islamabad"),
+)
+
+// ── UI state ───────────────────────────────────────────────────────────────
+
 data class MapUiState(
     val downloadedRegions: List<OfflineRegionEntity> = emptyList(),
-    /** null = not downloading; 0f–1f = in progress */
     val downloadProgress: Float? = null,
     val downloadStatusText: String = "",
     val isDownloading: Boolean = false,
     val showDownloadSheet: Boolean = false,
     val selectedPreset: CityPreset? = null,
     val snackbarMessage: String? = null,
-    /** Current GPS fix — null until permission granted and location resolved */
     val currentLocation: Pair<Double, Double>? = null,
-    val hasLocationPermission: Boolean = false
+    val hasLocationPermission: Boolean = false,
+    /** Incremented each time the user taps "centre on me" */
+    val recenterTrigger: Long = 0L,
+    val showPoiLegend: Boolean = false,
+    val showOfflinePacks: Boolean = false
 )
+
+// ── ViewModel ─────────────────────────────────────────────────────────────
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
@@ -54,7 +93,10 @@ class MapViewModel @Inject constructor(
         val selectedPreset: CityPreset? = null,
         val snackbarMessage: String? = null,
         val currentLocation: Pair<Double, Double>? = null,
-        val hasLocationPermission: Boolean = false
+        val hasLocationPermission: Boolean = false,
+        val recenterTrigger: Long = 0L,
+        val showPoiLegend: Boolean = false,
+        val showOfflinePacks: Boolean = false
     )
 
     private val _mutableState = MutableStateFlow(MutableMapState())
@@ -72,7 +114,10 @@ class MapViewModel @Inject constructor(
             selectedPreset       = mut.selectedPreset,
             snackbarMessage      = mut.snackbarMessage,
             currentLocation      = mut.currentLocation,
-            hasLocationPermission = mut.hasLocationPermission
+            hasLocationPermission = mut.hasLocationPermission,
+            recenterTrigger      = mut.recenterTrigger,
+            showPoiLegend        = mut.showPoiLegend,
+            showOfflinePacks     = mut.showOfflinePacks
         )
     }.stateIn(
         scope = viewModelScope,
@@ -82,87 +127,74 @@ class MapViewModel @Inject constructor(
 
     val cityPresets: List<CityPreset> = OfflineMapManager.CITY_PRESETS
 
-    // ── Sheet visibility ───────────────────────────────────────────────────
+    // ── Sheet toggles ──────────────────────────────────────────────────────
 
-    fun showDownloadSheet() = _mutableState.update { it.copy(showDownloadSheet = true) }
-    fun hideDownloadSheet() = _mutableState.update { it.copy(showDownloadSheet = false) }
+    fun showDownloadSheet()  = _mutableState.update { it.copy(showDownloadSheet = true) }
+    fun hideDownloadSheet()  = _mutableState.update { it.copy(showDownloadSheet = false) }
+    fun selectPreset(p: CityPreset) = _mutableState.update { it.copy(selectedPreset = p) }
 
-    fun selectPreset(preset: CityPreset) =
-        _mutableState.update { it.copy(selectedPreset = preset) }
+    fun showPoiLegend()      = _mutableState.update { it.copy(showPoiLegend = true) }
+    fun hidePoiLegend()      = _mutableState.update { it.copy(showPoiLegend = false) }
+
+    fun showOfflinePacks()   = _mutableState.update { it.copy(showOfflinePacks = true) }
+    fun hideOfflinePacks()   = _mutableState.update { it.copy(showOfflinePacks = false) }
+
+    // ── Map re-centre ──────────────────────────────────────────────────────
+
+    fun triggerRecenter() = _mutableState.update { it.copy(recenterTrigger = it.recenterTrigger + 1) }
 
     // ── Location permission + fetch ────────────────────────────────────────
 
-    /** Called by the screen once the user grants (or has already granted) location permission. */
     fun onLocationPermissionGranted(context: Context) {
         _mutableState.update { it.copy(hasLocationPermission = true) }
         fetchCurrentLocation(context)
     }
 
-    fun onLocationPermissionDenied() {
+    fun onLocationPermissionDenied() =
         _mutableState.update { it.copy(hasLocationPermission = false) }
-    }
 
-    /**
-     * Tries [LocationManager.getLastKnownLocation] first (instant).
-     * Falls back to a single [LocationManager.requestLocationUpdates] if no cached fix.
-     */
     fun fetchCurrentLocation(context: Context) {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-        // Check permission again defensively
         val granted = ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-
         if (!granted) return
 
-        // Try cached fix from any available provider
         val cached = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
             .firstNotNullOfOrNull { provider ->
                 try { lm.getLastKnownLocation(provider) } catch (_: SecurityException) { null }
             }
-
         if (cached != null) {
             _mutableState.update { it.copy(currentLocation = cached.latitude to cached.longitude) }
             return
         }
-
-        // No cached fix — request one fresh update (network is faster for first fix)
         val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
                 _mutableState.update { it.copy(currentLocation = location.latitude to location.longitude) }
                 try { lm.removeUpdates(this) } catch (_: SecurityException) {}
             }
         }
-        try {
-            lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener)
-        } catch (_: SecurityException) {}
+        try { lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener) }
+        catch (_: SecurityException) {}
     }
 
     // ── Download ───────────────────────────────────────────────────────────
 
     fun downloadRegion(preset: CityPreset) {
         if (_mutableState.value.isDownloading) return
-
         _mutableState.update {
-            it.copy(
-                isDownloading      = true,
-                downloadProgress   = 0f,
-                downloadStatusText = "Starting…",
-                showDownloadSheet  = false
-            )
+            it.copy(isDownloading = true, downloadProgress = 0f, downloadStatusText = "Starting…", showDownloadSheet = false)
         }
-
         offlineMapManager.downloadRegion(
             preset = preset,
             regionName = preset.name,
-            onProgress = { progress, msg ->
+            onProgress = { progress, msg, _ ->
                 _mutableState.update { it.copy(downloadProgress = progress, downloadStatusText = msg) }
             },
-            onComplete = { regionId ->
+            onComplete = { regionId, sizeBytes ->
                 viewModelScope.launch {
                     repository.upsert(
                         OfflineRegionEntity(
@@ -176,7 +208,8 @@ class MapViewModel @Inject constructor(
                             minZoom      = preset.zoomMin,
                             maxZoom      = preset.zoomMax,
                             downloadedAt = System.currentTimeMillis(),
-                            status       = "COMPLETE"
+                            status       = "COMPLETE",
+                            sizeBytes    = sizeBytes
                         )
                     )
                     _mutableState.update {
@@ -184,7 +217,7 @@ class MapViewModel @Inject constructor(
                             isDownloading      = false,
                             downloadProgress   = null,
                             downloadStatusText = "",
-                            snackbarMessage    = "${preset.name} downloaded successfully"
+                            snackbarMessage    = "${preset.name} downloaded — tap ✓ to view offline packs"
                         )
                     }
                 }
@@ -192,47 +225,36 @@ class MapViewModel @Inject constructor(
             onError = { error ->
                 viewModelScope.launch {
                     _mutableState.update {
-                        it.copy(
-                            isDownloading      = false,
-                            downloadProgress   = null,
-                            downloadStatusText = "",
-                            snackbarMessage    = "Download failed: $error"
-                        )
+                        it.copy(isDownloading = false, downloadProgress = null, downloadStatusText = "", snackbarMessage = "Download failed: $error")
                     }
                 }
             }
         )
     }
 
-    /**
-     * Downloads a ~20 km × 20 km tile pack centred on the user's current GPS fix.
-     * Zooms 12–15 give good street-level detail at roughly 50–80 MB.
-     */
     fun downloadAroundLocation() {
         val location = _mutableState.value.currentLocation ?: return
         val (lat, lon) = location
-
-        val deltaLat = 0.09                                      // ~10 km north/south
-        val deltaLon = 0.09 / cos(Math.toRadians(lat))          // ~10 km east/west
-
-        val preset = CityPreset(
-            name    = "My Area (%.3f, %.3f)".format(lat, lon),
-            minLat  = lat - deltaLat,
-            minLon  = lon - deltaLon,
-            maxLat  = lat + deltaLat,
-            maxLon  = lon + deltaLon,
-            zoomMin = 12.0,
-            zoomMax = 15.0
+        val deltaLat = 0.09
+        val deltaLon = 0.09 / cos(Math.toRadians(lat))
+        downloadRegion(
+            CityPreset(
+                name    = "My Area (%.3f, %.3f)".format(lat, lon),
+                minLat  = lat - deltaLat,
+                minLon  = lon - deltaLon,
+                maxLat  = lat + deltaLat,
+                maxLon  = lon + deltaLon,
+                zoomMin = 12.0,
+                zoomMax = 15.0
+            )
         )
-        downloadRegion(preset)
     }
 
     // ── Delete / Pause / Resume ────────────────────────────────────────────
 
     fun deleteRegion(region: OfflineRegionEntity) {
         viewModelScope.launch {
-            val deleted = offlineMapManager.deleteRegion(region.id)
-            if (deleted) {
+            if (offlineMapManager.deleteRegion(region.id)) {
                 repository.deleteById(region.id)
                 _mutableState.update { it.copy(snackbarMessage = "${region.name} removed") }
             } else {
@@ -243,16 +265,12 @@ class MapViewModel @Inject constructor(
 
     fun pauseRegion(regionId: Long) = viewModelScope.launch {
         offlineMapManager.pauseRegion(regionId)
-        repository.getRegionById(regionId)?.let { entity ->
-            repository.upsert(entity.copy(status = "PAUSED"))
-        }
+        repository.getRegionById(regionId)?.let { repository.upsert(it.copy(status = "PAUSED")) }
     }
 
     fun resumeRegion(regionId: Long) = viewModelScope.launch {
         offlineMapManager.resumeRegion(regionId)
-        repository.getRegionById(regionId)?.let { entity ->
-            repository.upsert(entity.copy(status = "DOWNLOADING"))
-        }
+        repository.getRegionById(regionId)?.let { repository.upsert(it.copy(status = "DOWNLOADING")) }
     }
 
     // ── Share Location ─────────────────────────────────────────────────────
@@ -265,8 +283,8 @@ class MapViewModel @Inject constructor(
         }
         val (lat, lon) = location
         val text = "My location: $lat, $lon\nhttps://maps.google.com/?q=$lat,$lon"
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("My Location", text))
+        val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cb.setPrimaryClip(ClipData.newPlainText("My Location", text))
         _mutableState.update { it.copy(snackbarMessage = "Location copied — ready to paste into SMS") }
     }
 

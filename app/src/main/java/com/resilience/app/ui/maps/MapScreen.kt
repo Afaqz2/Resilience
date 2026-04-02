@@ -4,14 +4,14 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.LocationOff
-import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,6 +47,14 @@ private val LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_COARSE_LOCATION
 )
 
+// ── POI colours ────────────────────────────────────────────────────────────
+private val POI_HOSPITAL = "#E53935"
+private val POI_WATER    = "#1E88E5"
+private val POI_SHELTER  = "#FB8C00"
+private val POI_SHOP     = "#8E24AA"
+
+// ── MapScreen ──────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
@@ -56,7 +65,7 @@ fun MapScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    // ── Permission launcher ────────────────────────────────────────────────
+    // ── Permission launcher ───────────────────────────────────────────────
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
@@ -66,20 +75,14 @@ fun MapScreen(
         else         viewModel.onLocationPermissionDenied()
     }
 
-    // On first composition: check if permission already held, otherwise ask
     LaunchedEffect(Unit) {
-        val alreadyGranted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
+        val alreadyGranted =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)  == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (alreadyGranted) viewModel.onLocationPermissionGranted(context)
-        else                 permissionLauncher.launch(LOCATION_PERMISSIONS)
+        else                permissionLauncher.launch(LOCATION_PERMISSIONS)
     }
 
-    // Show snackbar messages
     LaunchedEffect(uiState.snackbarMessage) {
         uiState.snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -97,13 +100,34 @@ fun MapScreen(
                     }
                 },
                 actions = {
-                    // City-preset sheet (alternative to location-based download)
-                    IconButton(onClick = { viewModel.showDownloadSheet() }) {
-                        Icon(Icons.Default.Download, contentDescription = "Browse city presets")
+                    // POI legend
+                    IconButton(onClick = { viewModel.showPoiLegend() }) {
+                        Icon(Icons.Default.Info, contentDescription = "POI legend")
                     }
-                    // Share location shortcut
-                    IconButton(onClick = { viewModel.shareLocation(context) }) {
-                        Icon(Icons.Default.MyLocation, contentDescription = "Share my location")
+                    // City-preset download
+                    IconButton(onClick = { viewModel.showDownloadSheet() }) {
+                        Icon(Icons.Default.CloudDownload, contentDescription = "Download city map")
+                    }
+                    // Offline packs indicator — only shown when packs exist
+                    if (uiState.downloadedRegions.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.showOfflinePacks() }) {
+                            BadgedBox(
+                                badge = {
+                                    Badge(containerColor = Color(0xFF4CAF50)) {
+                                        Text(
+                                            text = "${uiState.downloadedRegions.size}",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = "View offline packs",
+                                    tint = Color(0xFF4CAF50)
+                                )
+                            }
+                        }
                     }
                 }
             )
@@ -115,46 +139,56 @@ fun MapScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Map — always rendered; location dot appears once permission is granted
             MapLibreComposable(
-                modifier = Modifier.fillMaxSize(),
+                modifier              = Modifier.fillMaxSize(),
                 hasLocationPermission = uiState.hasLocationPermission,
-                currentLocation = uiState.currentLocation
+                currentLocation       = uiState.currentLocation,
+                recenterTrigger       = uiState.recenterTrigger
             )
 
-            // Offline packs badge (top-right)
-            if (uiState.downloadedRegions.isNotEmpty()) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = SafeReachDarkGray
+            // ── FABs (right side) ─────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Centre on user
+                FloatingActionButton(
+                    onClick            = { viewModel.triggerRecenter() },
+                    modifier           = Modifier.size(48.dp),
+                    containerColor     = Color.White,
+                    contentColor       = SafeReachDarkGray,
+                    shape              = CircleShape,
+                    elevation          = FloatingActionButtonDefaults.elevation(4.dp)
                 ) {
-                    Text(
-                        text = "${uiState.downloadedRegions.size} pack${if (uiState.downloadedRegions.size > 1) "s" else ""} offline",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Icon(Icons.Default.MyLocation, contentDescription = "Centre on me", modifier = Modifier.size(22.dp))
+                }
+                // Share location
+                FloatingActionButton(
+                    onClick        = { viewModel.shareLocation(context) },
+                    modifier       = Modifier.size(48.dp),
+                    containerColor = SafeReachDarkGray,
+                    contentColor   = Color.White,
+                    shape          = CircleShape,
+                    elevation      = FloatingActionButtonDefaults.elevation(4.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = "Share location", modifier = Modifier.size(20.dp))
                 }
             }
 
-            // Bottom overlay — three mutually exclusive states:
+            // ── Bottom overlay (mutually exclusive) ───────────────────────
             when {
-                // 1. Actively downloading — show progress
                 uiState.isDownloading -> {
                     DownloadProgressCard(
                         progress   = uiState.downloadProgress ?: 0f,
                         statusText = uiState.downloadStatusText,
                         modifier   = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(horizontal = 16.dp, vertical = 24.dp)
+                            .padding(horizontal = 16.dp, vertical = 20.dp)
                             .fillMaxWidth()
                     )
                 }
-
-                // 2. Location obtained — show "Download this area" card
                 uiState.currentLocation != null -> {
                     val loc = uiState.currentLocation!!
                     DownloadAreaCard(
@@ -163,18 +197,16 @@ fun MapScreen(
                         onDownload = { viewModel.downloadAroundLocation() },
                         modifier   = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(horizontal = 16.dp, vertical = 24.dp)
+                            .padding(horizontal = 16.dp, vertical = 20.dp)
                             .fillMaxWidth()
                     )
                 }
-
-                // 3. Permission denied — show banner with retry button
                 !uiState.hasLocationPermission -> {
                     PermissionDeniedBanner(
                         onRetry  = { permissionLauncher.launch(LOCATION_PERMISSIONS) },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(horizontal = 16.dp, vertical = 24.dp)
+                            .padding(horizontal = 16.dp, vertical = 20.dp)
                             .fillMaxWidth()
                     )
                 }
@@ -182,12 +214,22 @@ fun MapScreen(
         }
     }
 
-    // City-preset download sheet
+    // ── Sheets ─────────────────────────────────────────────────────────────
     if (uiState.showDownloadSheet) {
         OfflineMapDownloadSheet(
             viewModel = viewModel,
             uiState   = uiState,
             onDismiss = { viewModel.hideDownloadSheet() }
+        )
+    }
+    if (uiState.showPoiLegend) {
+        PoiLegendSheet(onDismiss = { viewModel.hidePoiLegend() })
+    }
+    if (uiState.showOfflinePacks) {
+        OfflinePacksSheet(
+            regions   = uiState.downloadedRegions,
+            viewModel = viewModel,
+            onDismiss = { viewModel.hideOfflinePacks() }
         )
     }
 }
@@ -198,7 +240,8 @@ fun MapScreen(
 fun MapLibreComposable(
     modifier: Modifier = Modifier,
     hasLocationPermission: Boolean,
-    currentLocation: Pair<Double, Double>?
+    currentLocation: Pair<Double, Double>?,
+    recenterTrigger: Long
 ) {
     val context   = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -211,7 +254,7 @@ fun MapLibreComposable(
         MapView(context)
     }
 
-    // Enable the blue-dot location component when permission arrives and style is ready
+    // Enable blue-dot when permission + style are ready
     LaunchedEffect(hasLocationPermission, styleRef.value) {
         val map   = mapRef.value   ?: return@LaunchedEffect
         val style = styleRef.value ?: return@LaunchedEffect
@@ -226,14 +269,23 @@ fun MapLibreComposable(
             lc.isLocationComponentEnabled = true
             lc.cameraMode = CameraMode.TRACKING
             lc.renderMode = RenderMode.NORMAL
-        } catch (_: Exception) { /* location component unavailable */ }
+        } catch (_: Exception) {}
     }
 
-    // Animate camera to user's location once we have a fix
+    // Animate to first location fix
     LaunchedEffect(currentLocation) {
         val map = mapRef.value ?: return@LaunchedEffect
         currentLocation?.let { (lat, lon) ->
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lon), 13.0))
+        }
+    }
+
+    // Re-centre on demand (user tapped FAB)
+    LaunchedEffect(recenterTrigger) {
+        if (recenterTrigger == 0L) return@LaunchedEffect
+        val map = mapRef.value ?: return@LaunchedEffect
+        currentLocation?.let { (lat, lon) ->
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lon), 14.0))
         }
     }
 
@@ -263,43 +315,23 @@ fun MapLibreComposable(
                     mapRef.value = map
                     map.setStyle(OfflineMapManager.DEMO_STYLE_URL) { style ->
                         styleRef.value = style
-                        // Bundled POI overlay (silent fail if asset missing)
+                        // POI overlay — silent fail if asset missing
                         try {
-                            val geojson = context.assets
-                                .open("poi_overlay.geojson")
-                                .bufferedReader()
-                                .readText()
+                            val geojson = context.assets.open("poi_overlay.geojson").bufferedReader().readText()
                             style.addSource(GeoJsonSource("poi-source", geojson))
-                            style.addLayer(
-                                CircleLayer("poi-hospitals", "poi-source")
-                                    .withFilter(eq("type", "hospital"))
+                            fun layer(id: String, typeVal: String, color: String) =
+                                CircleLayer(id, "poi-source")
+                                    .withFilter(poiEq("type", typeVal))
                                     .withProperties(
-                                        PropertyFactory.circleColor("#E53935"),
+                                        PropertyFactory.circleColor(color),
                                         PropertyFactory.circleRadius(7f),
                                         PropertyFactory.circleStrokeWidth(2f),
                                         PropertyFactory.circleStrokeColor("#FFFFFF")
                                     )
-                            )
-                            style.addLayer(
-                                CircleLayer("poi-water", "poi-source")
-                                    .withFilter(eq("type", "water"))
-                                    .withProperties(
-                                        PropertyFactory.circleColor("#1E88E5"),
-                                        PropertyFactory.circleRadius(7f),
-                                        PropertyFactory.circleStrokeWidth(2f),
-                                        PropertyFactory.circleStrokeColor("#FFFFFF")
-                                    )
-                            )
-                            style.addLayer(
-                                CircleLayer("poi-shelters", "poi-source")
-                                    .withFilter(eq("type", "shelter"))
-                                    .withProperties(
-                                        PropertyFactory.circleColor("#FB8C00"),
-                                        PropertyFactory.circleRadius(7f),
-                                        PropertyFactory.circleStrokeWidth(2f),
-                                        PropertyFactory.circleStrokeColor("#FFFFFF")
-                                    )
-                            )
+                            style.addLayer(layer("poi-hospitals", "hospital", POI_HOSPITAL))
+                            style.addLayer(layer("poi-water",     "water",    POI_WATER))
+                            style.addLayer(layer("poi-shelters",  "shelter",  POI_SHELTER))
+                            style.addLayer(layer("poi-shops",     "shop",     POI_SHOP))
                         } catch (_: Exception) {}
                     }
                 }
@@ -309,19 +341,232 @@ fun MapLibreComposable(
     )
 }
 
-private fun eq(key: String, value: String) =
+private fun poiEq(key: String, value: String) =
     com.mapbox.mapboxsdk.style.expressions.Expression.eq(
         com.mapbox.mapboxsdk.style.expressions.Expression.get(key),
         com.mapbox.mapboxsdk.style.expressions.Expression.literal(value)
     )
 
+// ── POI Legend Sheet ───────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PoiLegendSheet(onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor   = MaterialTheme.colorScheme.surface,
+        shape            = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp)
+        ) {
+            item {
+                Text(
+                    text     = "Map Legend",
+                    style    = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                )
+                Text(
+                    text     = "${BUNDLED_POIS.size} bundled points of interest across Karachi, Lahore & Islamabad",
+                    style    = MaterialTheme.typography.bodySmall,
+                    color    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+                Spacer(Modifier.height(16.dp))
+                // Legend key
+                listOf(
+                    Triple("Hospitals",     POI_HOSPITAL, "🔴"),
+                    Triple("Water Sources", POI_WATER,    "🔵"),
+                    Triple("Shelters",      POI_SHELTER,  "🟠"),
+                    Triple("Shops",         POI_SHOP,     "🟣"),
+                ).forEach { (label, hex, emoji) ->
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .background(Color(android.graphics.Color.parseColor(hex)), CircleShape)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("$emoji  $label", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp))
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Group POIs by type then city
+            val byType = BUNDLED_POIS.groupBy { it.type }
+            listOf("hospital" to "🔴 Hospitals", "water" to "🔵 Water Sources", "shelter" to "🟠 Shelters", "shop" to "🟣 Shops")
+                .forEach { (typeKey, header) ->
+                    val entries = byType[typeKey] ?: return@forEach
+                    item {
+                        Text(
+                            text     = header,
+                            style    = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        )
+                    }
+                    items(entries) { poi ->
+                        Row(
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("•  ", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                            Column {
+                                Text(poi.name, style = MaterialTheme.typography.bodySmall)
+                                Text(poi.city, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(4.dp)) }
+                }
+        }
+    }
+}
+
+// ── Offline Packs Sheet ────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OfflinePacksSheet(
+    regions: List<com.resilience.app.data.db.entity.OfflineRegionEntity>,
+    viewModel: MapViewModel,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor   = MaterialTheme.colorScheme.surface,
+        shape            = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.CloudDone, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text  = "Downloaded Maps",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text     = "These maps open fully offline — no internet needed.",
+                    style    = MaterialTheme.typography.bodySmall,
+                    color    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+
+                // Total storage summary
+                val totalMb = regions.sumOf { it.sizeBytes } / 1_048_576f
+                Surface(
+                    modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth(),
+                    shape    = RoundedCornerShape(12.dp),
+                    color    = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("${regions.size} pack${if (regions.size > 1) "s" else ""} stored", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Text("${"%.1f".format(totalMb)} MB total", style = MaterialTheme.typography.bodySmall, color = Color(0xFF2E7D32))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp))
+                Spacer(Modifier.height(8.dp))
+            }
+
+            items(regions, key = { it.id }) { region ->
+                OfflinePackRow(
+                    region   = region,
+                    onDelete = { viewModel.deleteRegion(region) },
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OfflinePackRow(
+    region: com.resilience.app.data.db.entity.OfflineRegionEntity,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showConfirm by remember { mutableStateOf(false) }
+    val sizeMb = region.sizeBytes / 1_048_576f
+    val date   = remember(region.downloadedAt) {
+        java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault())
+            .format(java.util.Date(region.downloadedAt))
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape    = RoundedCornerShape(12.dp),
+        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Map, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(region.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(2.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (sizeMb > 0f) Text("${"%.1f".format(sizeMb)} MB", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50))
+                    Text("Downloaded $date", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                }
+            }
+            IconButton(onClick = { showConfirm = true }) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFE57373))
+            }
+        }
+    }
+
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text("Delete ${region.name}?") },
+            text  = { Text("Tile pack will be permanently removed. You can re-download it later.") },
+            confirmButton = {
+                TextButton(onClick = { showConfirm = false; onDelete() }) {
+                    Text("Delete", color = Color(0xFFE57373))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
 // ── Bottom overlay cards ───────────────────────────────────────────────────
 
-/** Shown when location is known — lets the user download the area around them. */
 @Composable
 fun DownloadAreaCard(
-    lat: Double,
-    lon: Double,
+    lat: Double, lon: Double,
     onDownload: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -329,38 +574,22 @@ fun DownloadAreaCard(
         modifier  = modifier,
         shape     = RoundedCornerShape(16.dp),
         colors    = CardDefaults.cardColors(containerColor = SafeReachDarkGray),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(8.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.CloudDownload,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
+            Icon(Icons.Default.CloudDownload, null, tint = Color.White, modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text  = "Download area around you",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text  = "~20 km × 20 km · zoom 12–15 · works fully offline",
-                    color = Color.White.copy(alpha = 0.65f),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Text("Download area around you", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text("~20 km × 20 km · zoom 12–15 · fully offline", color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.width(8.dp))
             Button(
                 onClick = onDownload,
-                colors  = ButtonDefaults.buttonColors(containerColor = Color(0xFF81C784)),
+                colors  = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                 shape   = RoundedCornerShape(10.dp),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
             ) {
@@ -370,7 +599,6 @@ fun DownloadAreaCard(
     }
 }
 
-/** Shown while a tile pack is downloading. */
 @Composable
 fun DownloadProgressCard(
     progress: Float,
@@ -381,53 +609,30 @@ fun DownloadProgressCard(
         modifier  = modifier,
         shape     = RoundedCornerShape(16.dp),
         colors    = CardDefaults.cardColors(containerColor = SafeReachDarkGray),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(8.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.CloudDownload,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.Default.CloudDownload, null, tint = Color.White, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    text  = "Downloading map tiles…",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Downloading map tiles…", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(10.dp))
             LinearProgressIndicator(
                 progress   = { progress },
                 modifier   = Modifier.fillMaxWidth(),
-                color      = Color(0xFF81C784),
+                color      = Color(0xFF4CAF50),
                 trackColor = Color.White.copy(alpha = 0.2f)
             )
             Spacer(Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text  = statusText,
-                    color = Color.White.copy(alpha = 0.65f),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text  = "${(progress * 100).toInt()}%",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(statusText, color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
+                Text("${(progress * 100).toInt()}%", color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
-/** Shown when the user has denied location permission. */
 @Composable
 fun PermissionDeniedBanner(
     onRetry: () -> Unit,
@@ -437,39 +642,20 @@ fun PermissionDeniedBanner(
         modifier  = modifier,
         shape     = RoundedCornerShape(16.dp),
         colors    = CardDefaults.cardColors(containerColor = Color(0xFF37474F)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(8.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.LocationOff,
-                contentDescription = null,
-                tint = Color(0xFFFFB74D),
-                modifier = Modifier.size(28.dp)
-            )
+            Icon(Icons.Default.LocationOff, null, tint = Color(0xFFFFB74D), modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text  = "Location permission needed",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text  = "Required to show your position and download the area around you.",
-                    color = Color.White.copy(alpha = 0.65f),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Text("Location permission needed", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text("Required to show your position and download the area around you.", color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.width(8.dp))
-            OutlinedButton(
-                onClick = onRetry,
-                shape   = RoundedCornerShape(10.dp)
-            ) {
+            OutlinedButton(onClick = onRetry, shape = RoundedCornerShape(10.dp)) {
                 Text("Allow", color = Color.White)
             }
         }

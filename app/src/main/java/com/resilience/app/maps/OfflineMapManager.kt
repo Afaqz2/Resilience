@@ -44,8 +44,11 @@ class OfflineMapManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        /** Public demo tile style — no API key required. */
-        const val DEMO_STYLE_URL = "https://demotiles.maplibre.org/style.json"
+        /**
+         * CartoDB Voyager GL style — full road network, labels, buildings.
+         * Free & public, no API key required.
+         */
+        const val DEMO_STYLE_URL = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
 
         /** Preset city bounding boxes for the city selector. */
         val CITY_PRESETS = listOf(
@@ -76,8 +79,8 @@ class OfflineMapManager @Inject constructor(
     fun downloadRegion(
         preset: CityPreset,
         regionName: String,
-        onProgress: (Float, String) -> Unit,
-        onComplete: (Long) -> Unit,
+        onProgress: (progress: Float, statusText: String, sizeBytes: Long) -> Unit,
+        onComplete: (regionId: Long, sizeBytes: Long) -> Unit,
         onError: (String) -> Unit
     ) {
         val bounds = LatLngBounds.Builder()
@@ -104,11 +107,14 @@ class OfflineMapManager @Inject constructor(
                 override fun onCreate(offlineRegion: OfflineRegion) {
                     offlineRegion.setObserver(object : OfflineRegion.OfflineRegionObserver {
                         override fun onStatusChanged(status: OfflineRegionStatus) {
-                            val required = status.requiredResourceCount
+                            val required  = status.requiredResourceCount
                             val completed = status.completedResourceCount
-                            val progress = if (required > 0) completed.toFloat() / required else 0f
-                            onProgress(progress, "$completed / $required tiles")
-                            if (status.isComplete) onComplete(offlineRegion.id)
+                            val sizeBytes = status.completedResourceSize
+                            val sizeMb    = sizeBytes / 1_048_576f
+                            val progress  = if (required > 0) completed.toFloat() / required else 0f
+                            val text      = "$completed / $required tiles · ${"%.1f".format(sizeMb)} MB"
+                            onProgress(progress, text, sizeBytes)
+                            if (status.isComplete) onComplete(offlineRegion.id, sizeBytes)
                         }
 
                         override fun onError(error: OfflineRegionError) {
@@ -130,7 +136,7 @@ class OfflineMapManager @Inject constructor(
     /** Returns all offline regions currently stored by MapLibre. */
     suspend fun listRegions(): List<OfflineRegion> = suspendCancellableCoroutine { cont ->
         offlineManager.listOfflineRegions(object : OfflineManager.ListOfflineRegionsCallback {
-            override fun onList(offlineRegions: Array<out OfflineRegion>?) {
+            override fun onList(offlineRegions: Array<OfflineRegion>?) {
                 cont.resume(offlineRegions?.toList() ?: emptyList())
             }
             override fun onError(error: String) { cont.resume(emptyList()) }

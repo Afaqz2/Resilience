@@ -24,5 +24,7 @@ data class OfflineRegionEntity(
     /** Epoch milliseconds — used by MapTileCleanupWorker to prune stale packs */
     val downloadedAt: Long,
     /** One of: DOWNLOADING | COMPLETE | PAUSED | ERROR */
-    val status: String = "COMPLETE"
+    val status: String = "COMPLETE",
+    /** Total bytes of tiles + resources downloaded — 0 until pack is complete */
+    val sizeBytes: Long = 0L
 )
