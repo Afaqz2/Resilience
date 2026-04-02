@@ -5,6 +5,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.cos
 
 data class MapUiState(
     val downloadedRegions: List<OfflineRegionEntity> = emptyList(),
@@ -31,7 +34,10 @@ data class MapUiState(
     val isDownloading: Boolean = false,
     val showDownloadSheet: Boolean = false,
     val selectedPreset: CityPreset? = null,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    /** Current GPS fix — null until permission granted and location resolved */
+    val currentLocation: Pair<Double, Double>? = null,
+    val hasLocationPermission: Boolean = false
 )
 
 @HiltViewModel
@@ -46,7 +52,9 @@ class MapViewModel @Inject constructor(
         val isDownloading: Boolean = false,
         val showDownloadSheet: Boolean = false,
         val selectedPreset: CityPreset? = null,
-        val snackbarMessage: String? = null
+        val snackbarMessage: String? = null,
+        val currentLocation: Pair<Double, Double>? = null,
+        val hasLocationPermission: Boolean = false
     )
 
     private val _mutableState = MutableStateFlow(MutableMapState())
@@ -56,13 +64,15 @@ class MapViewModel @Inject constructor(
         _mutableState
     ) { regions, mut ->
         MapUiState(
-            downloadedRegions  = regions,
-            downloadProgress   = mut.downloadProgress,
-            downloadStatusText = mut.downloadStatusText,
-            isDownloading      = mut.isDownloading,
-            showDownloadSheet  = mut.showDownloadSheet,
-            selectedPreset     = mut.selectedPreset,
-            snackbarMessage    = mut.snackbarMessage
+            downloadedRegions    = regions,
+            downloadProgress     = mut.downloadProgress,
+            downloadStatusText   = mut.downloadStatusText,
+            isDownloading        = mut.isDownloading,
+            showDownloadSheet    = mut.showDownloadSheet,
+            selectedPreset       = mut.selectedPreset,
+            snackbarMessage      = mut.snackbarMessage,
+            currentLocation      = mut.currentLocation,
+            hasLocationPermission = mut.hasLocationPermission
         )
     }.stateIn(
         scope = viewModelScope,
@@ -80,13 +90,70 @@ class MapViewModel @Inject constructor(
     fun selectPreset(preset: CityPreset) =
         _mutableState.update { it.copy(selectedPreset = preset) }
 
+    // ── Location permission + fetch ────────────────────────────────────────
+
+    /** Called by the screen once the user grants (or has already granted) location permission. */
+    fun onLocationPermissionGranted(context: Context) {
+        _mutableState.update { it.copy(hasLocationPermission = true) }
+        fetchCurrentLocation(context)
+    }
+
+    fun onLocationPermissionDenied() {
+        _mutableState.update { it.copy(hasLocationPermission = false) }
+    }
+
+    /**
+     * Tries [LocationManager.getLastKnownLocation] first (instant).
+     * Falls back to a single [LocationManager.requestLocationUpdates] if no cached fix.
+     */
+    fun fetchCurrentLocation(context: Context) {
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        // Check permission again defensively
+        val granted = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!granted) return
+
+        // Try cached fix from any available provider
+        val cached = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+            .firstNotNullOfOrNull { provider ->
+                try { lm.getLastKnownLocation(provider) } catch (_: SecurityException) { null }
+            }
+
+        if (cached != null) {
+            _mutableState.update { it.copy(currentLocation = cached.latitude to cached.longitude) }
+            return
+        }
+
+        // No cached fix — request one fresh update (network is faster for first fix)
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                _mutableState.update { it.copy(currentLocation = location.latitude to location.longitude) }
+                try { lm.removeUpdates(this) } catch (_: SecurityException) {}
+            }
+        }
+        try {
+            lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener)
+        } catch (_: SecurityException) {}
+    }
+
     // ── Download ───────────────────────────────────────────────────────────
 
     fun downloadRegion(preset: CityPreset) {
         if (_mutableState.value.isDownloading) return
 
         _mutableState.update {
-            it.copy(isDownloading = true, downloadProgress = 0f, downloadStatusText = "Starting…", showDownloadSheet = false)
+            it.copy(
+                isDownloading      = true,
+                downloadProgress   = 0f,
+                downloadStatusText = "Starting…",
+                showDownloadSheet  = false
+            )
         }
 
         offlineMapManager.downloadRegion(
@@ -137,6 +204,29 @@ class MapViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Downloads a ~20 km × 20 km tile pack centred on the user's current GPS fix.
+     * Zooms 12–15 give good street-level detail at roughly 50–80 MB.
+     */
+    fun downloadAroundLocation() {
+        val location = _mutableState.value.currentLocation ?: return
+        val (lat, lon) = location
+
+        val deltaLat = 0.09                                      // ~10 km north/south
+        val deltaLon = 0.09 / cos(Math.toRadians(lat))          // ~10 km east/west
+
+        val preset = CityPreset(
+            name    = "My Area (%.3f, %.3f)".format(lat, lon),
+            minLat  = lat - deltaLat,
+            minLon  = lon - deltaLon,
+            maxLat  = lat + deltaLat,
+            maxLon  = lon + deltaLon,
+            zoomMin = 12.0,
+            zoomMax = 15.0
+        )
+        downloadRegion(preset)
+    }
+
     // ── Delete / Pause / Resume ────────────────────────────────────────────
 
     fun deleteRegion(region: OfflineRegionEntity) {
@@ -167,37 +257,17 @@ class MapViewModel @Inject constructor(
 
     // ── Share Location ─────────────────────────────────────────────────────
 
-    /**
-     * Reads the last known GPS fix and copies "lat, lon + Google Maps link"
-     * to the clipboard so it can be pasted into SMS / WhatsApp with no internet.
-     */
     fun shareLocation(context: Context) {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!hasPermission) {
-            _mutableState.update { it.copy(snackbarMessage = "Location permission required") }
+        val location = _mutableState.value.currentLocation
+        if (location == null) {
+            _mutableState.update { it.copy(snackbarMessage = "Location unavailable — ensure GPS is on") }
             return
         }
-
-        val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val location = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
-            .firstNotNullOfOrNull { provider ->
-                try { lm.getLastKnownLocation(provider) } catch (_: SecurityException) { null }
-            }
-
-        if (location != null) {
-            val text = buildString {
-                append("My location: ${location.latitude}, ${location.longitude}\n")
-                append("https://maps.google.com/?q=${location.latitude},${location.longitude}")
-            }
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("My Location", text))
-            _mutableState.update { it.copy(snackbarMessage = "Location copied — ready to paste into SMS") }
-        } else {
-            _mutableState.update { it.copy(snackbarMessage = "Location unavailable — ensure GPS is on") }
-        }
+        val (lat, lon) = location
+        val text = "My location: $lat, $lon\nhttps://maps.google.com/?q=$lat,$lon"
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("My Location", text))
+        _mutableState.update { it.copy(snackbarMessage = "Location copied — ready to paste into SMS") }
     }
 
     fun clearSnackbar() = _mutableState.update { it.copy(snackbarMessage = null) }
