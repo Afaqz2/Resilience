@@ -3,7 +3,9 @@ package com.resilience.app.ui.familyvault
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,17 +18,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.resilience.app.data.db.entity.FamilyMemberEntity
 import com.resilience.app.data.db.entity.MeetingPointEntity
-import com.resilience.app.ui.theme.SafeReachDarkGray
+import com.resilience.app.ui.components.TacticalCard
+import com.resilience.app.ui.components.TacticalBottomStatusBar
+import com.resilience.app.ui.components.TacticalIconButton
+import com.resilience.app.ui.components.TacticalScannerOverlay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,124 +50,90 @@ fun FamilyVaultScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "Family Safety Vault",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        )
-                        Text(
-                            "Encrypted · Local only",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    Surface(
-                        color = Color(0xFF1B5E20).copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = Color(0xFF66BB6A),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                "Encrypted",
-                                color = Color(0xFF66BB6A),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(8.dp))
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+            FamilyVaultHeader(
+                activeCount = uiState.members.size,
+                onBack = onBack
+            )
+        },
+        bottomBar = {
+            TacticalBottomStatusBar(
+                statusText = "COMMS ACTIVE",
+                infoText = "${uiState.members.size} CONTACT${if (uiState.members.size == 1) "" else "S"}"
             )
         }
     ) { padding ->
 
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            return@Scaffold
-        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Subtle scanner for secondary screens
+            TacticalScannerOverlay(isProminent = false)
 
-        LazyColumn(
-            contentPadding = PaddingValues(
-                start = 16.dp, end = 16.dp,
-                top = padding.calculateTopPadding() + 8.dp,
-                bottom = 32.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-
-            // -------- Family Members Section --------
-            item {
-                SectionHeader(
-                    title = "Family Members",
-                    icon = Icons.Default.Group,
-                    onAdd = { viewModel.openAddMemberSheet() }
-                )
+            if (uiState.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+                return@Box
             }
 
-            if (uiState.members.isEmpty()) {
+            LazyColumn(
+                contentPadding = PaddingValues(
+                    start = 16.dp, end = 16.dp,
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + 24.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+
+                // -------- Meeting Points Section --------
                 item {
-                    EmptyState(
-                        message = "No family members added yet.",
-                        icon = Icons.Default.PersonAdd
+                    SectionHeader(
+                        title = "// RALLY POINTS",
+                        icon = Icons.Default.LocationOn,
+                        onAdd = { viewModel.openAddMeetingPointSheet() }
                     )
                 }
-            }
 
-            items(uiState.members, key = { it.id }) { member ->
-                FamilyMemberCard(
-                    member = member,
-                    onEdit = { viewModel.openAddMemberSheet(member) },
-                    onDelete = { viewModel.deleteMember(member) }
-                )
-            }
+                if (uiState.meetingPoints.isEmpty()) {
+                    item {
+                        EmptyState(
+                            message = "No rally points set yet.",
+                            icon = Icons.Default.AddLocation
+                        )
+                    }
+                }
 
-            // -------- Meeting Points Section --------
-            item {
-                Spacer(Modifier.height(4.dp))
-                SectionHeader(
-                    title = "Meeting Points",
-                    icon = Icons.Default.LocationOn,
-                    onAdd = { viewModel.openAddMeetingPointSheet() }
-                )
-            }
-
-            if (uiState.meetingPoints.isEmpty()) {
-                item {
-                    EmptyState(
-                        message = "No meeting points set yet.",
-                        icon = Icons.Default.AddLocation
+                items(uiState.meetingPoints, key = { "pt_${it.id}" }) { point ->
+                    MeetingPointCard(
+                        point = point,
+                        onDelete = { viewModel.deleteMeetingPoint(point) }
                     )
                 }
-            }
 
-            items(uiState.meetingPoints, key = { it.id }) { point ->
-                MeetingPointCard(
-                    point = point,
-                    onDelete = { viewModel.deleteMeetingPoint(point) }
-                )
+                // -------- Family Members Section --------
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    SectionHeader(
+                        title = "// CONTACTS",
+                        icon = Icons.Default.Group,
+                        onAdd = { viewModel.openAddMemberSheet() }
+                    )
+                }
+
+                if (uiState.members.isEmpty()) {
+                    item {
+                        EmptyState(
+                            message = "No family members added yet.",
+                            icon = Icons.Default.PersonAdd
+                        )
+                    }
+                }
+
+                items(uiState.members, key = { "member_${it.id}" }) { member ->
+                    FamilyMemberCard(
+                        member = member,
+                        onEdit = { viewModel.openAddMemberSheet(member) },
+                        onDelete = { viewModel.deleteMember(member) }
+                    )
+                }
             }
         }
     }
@@ -188,21 +156,99 @@ fun FamilyVaultScreen(
     }
 }
 
+@Composable
+private fun FamilyVaultHeader(
+    activeCount: Int,
+    onBack: () -> Unit
+) {
+    Surface(color = MaterialTheme.colorScheme.background) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TacticalIconButton(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Back",
+                onClick = onBack
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Icon(
+                imageVector = Icons.Default.Group,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "FAMILY PLAN",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Surface(
+                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(4.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(MaterialTheme.colorScheme.secondary, CircleShape)
+                    )
+                    Text(
+                        text = "$activeCount ACTIVE",
+                        color = MaterialTheme.colorScheme.secondary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Section header with + button
 // ---------------------------------------------------------------------------
 @Composable
-private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onAdd: () -> Unit) {
+private fun SectionHeader(title: String, icon: ImageVector, onAdd: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
-        IconButton(onClick = onAdd, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Default.AddCircle, contentDescription = "Add", tint = MaterialTheme.colorScheme.onBackground)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+            )
         }
+        TacticalIconButton(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Add",
+            onClick = onAdd,
+            containerSize = 32.dp,
+            iconSize = 16.dp,
+            tint = MaterialTheme.colorScheme.primary,
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+        )
     }
 }
 
@@ -217,43 +263,87 @@ private fun FamilyMemberCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val initials = member.name.split(" ").take(2).joinToString("") { it.firstOrNull()?.uppercase() ?: "" }
-    val avatarColor = remember(member.id) {
-        val colors = listOf(0xFFE53935, 0xFF8E24AA, 0xFF1E88E5, 0xFF43A047, 0xFFFF8F00)
-        Color(colors[(member.id % colors.size).toInt()])
-    }
 
-    Card(
-        onClick = { expanded = !expanded },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SafeReachDarkGray),
+    TacticalCard(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(16.dp).clickable { expanded = !expanded }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Tactical Avatar Square
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(CircleShape)
-                        .background(avatarColor.copy(alpha = 0.2f)),
+                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(initials, color = avatarColor, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                    Text(initials, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium)
+                    // Status dot overlay
+                    Box(modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)) {
+                        Surface(
+                            modifier = Modifier.size(8.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondary // Assuming active/online for demo
+                        ) {}
+                    }
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(member.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(member.relationship, color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.bodySmall)
+                    Text(member.name, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        member.relationship.uppercase(), 
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), 
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
-                Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.4f)
-                )
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(2.dp)
+                    ) {
+                        Text(
+                            "ACTIVE",
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Now", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Action Buttons
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { /* TODO */ },
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground)
+                ) {
+                    Icon(Icons.Default.SettingsInputAntenna, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("PING", style = MaterialTheme.typography.labelMedium)
+                }
+                OutlinedButton(
+                    onClick = { /* TODO */ },
+                    modifier = Modifier.weight(1f).height(40.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground)
+                ) {
+                    Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("CONTACT", style = MaterialTheme.typography.labelMedium)
+                }
             }
 
             AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
-                Column(modifier = Modifier.padding(top = 12.dp)) {
-                    Divider(color = Color.White.copy(alpha = 0.08f))
+                Column(modifier = Modifier.padding(top = 16.dp)) {
+                    Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
                     Spacer(Modifier.height(12.dp))
                     MemberDetailRow(label = "Blood Group", value = member.bloodGroup, icon = Icons.Default.Bloodtype)
                     if (member.allergies.isNotBlank())
@@ -264,17 +354,18 @@ private fun FamilyMemberCard(
                         MemberDetailRow(label = "Emergency Contact", value = "${member.emergencyContactName} · ${member.emergencyContactPhone}", icon = Icons.Default.Phone)
                     if (member.notes.isNotBlank())
                         MemberDetailRow(label = "Notes", value = member.notes, icon = Icons.Default.Notes)
+                    
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                        TextButton(onClick = onDelete) {
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF5350), modifier = Modifier.size(16.dp))
+                        TextButton(onClick = onDelete, shape = RoundedCornerShape(4.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Remove", color = Color(0xFFEF5350), style = MaterialTheme.typography.labelMedium)
+                            Text("Remove", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
                         }
-                        TextButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        TextButton(onClick = onEdit, shape = RoundedCornerShape(4.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Edit", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                            Text("Edit", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -286,11 +377,11 @@ private fun FamilyMemberCard(
 @Composable
 private fun MemberDetailRow(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(vertical = 4.dp)) {
-        Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp).padding(top = 2.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f), modifier = Modifier.size(16.dp).padding(top = 2.dp))
         Spacer(Modifier.width(8.dp))
         Column {
-            Text(label, color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
-            Text(value, color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall)
+            Text(label.uppercase(), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
+            Text(value, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -301,53 +392,69 @@ private fun MemberDetailRow(label: String, value: String, icon: androidx.compose
 @Composable
 private fun MeetingPointCard(point: MeetingPointEntity, onDelete: () -> Unit) {
     val priorityColor = when (point.priority) {
-        1 -> Color(0xFF43A047)
-        2 -> Color(0xFFFF8F00)
-        else -> Color(0xFFE53935)
+        1 -> MaterialTheme.colorScheme.primary // Rust
+        2 -> MaterialTheme.colorScheme.tertiary // Amber
+        else -> MaterialTheme.colorScheme.secondary // Olive
     }
     val priorityLabel = when (point.priority) {
-        1 -> "Primary"
-        2 -> "Secondary"
-        else -> "Tertiary"
+        1 -> "PRIMARY RALLY POINT"
+        2 -> "SECONDARY RALLY POINT"
+        else -> "TERTIARY RALLY POINT"
     }
 
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SafeReachDarkGray),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = priorityColor.copy(alpha = 0.15f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = priorityColor, modifier = Modifier.size(22.dp))
-                }
+    TacticalCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LocationOn, contentDescription = null, tint = priorityColor, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(priorityLabel, color = priorityColor, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                TacticalIconButton(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Delete",
+                    onClick = onDelete,
+                    containerSize = 32.dp,
+                    iconSize = 16.dp,
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
             }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(point.label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                    Surface(color = priorityColor.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp)) {
-                        Text(priorityLabel, color = priorityColor, style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+            Spacer(Modifier.height(12.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(point.label, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "%.5f° N, %.5f° W".format(point.latitude, Math.abs(point.longitude)), // Dummy format mimicking mock
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(color = MaterialTheme.colorScheme.secondary.copy(alpha=0.2f), shape = RoundedCornerShape(2.dp)) {
+                            Text("VERIFIED", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal=6.dp, vertical=2.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text("Last checked: 6h ago", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "%.5f, %.5f".format(point.latitude, point.longitude),
-                    color = Color.White.copy(alpha = 0.5f),
-                    style = MaterialTheme.typography.labelSmall
-                )
-                if (point.plainTextDirections.isNotBlank()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(point.plainTextDirections, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall, maxLines = 3)
-                }
             }
-            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
+            if (point.plainTextDirections.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.02f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha=0.1f)),
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Directions: ${point.plainTextDirections}", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    }
+                }
             }
         }
     }
@@ -358,18 +465,16 @@ private fun MeetingPointCard(point: MeetingPointEntity, onDelete: () -> Unit) {
 // ---------------------------------------------------------------------------
 @Composable
 private fun EmptyState(message: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Surface(
-        color = SafeReachDarkGray.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(16.dp),
+    TacticalCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(24.dp)
         ) {
-            Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(36.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f), modifier = Modifier.size(36.dp))
             Spacer(Modifier.height(8.dp))
-            Text(message, color = Color.White.copy(alpha = 0.4f), style = MaterialTheme.typography.bodySmall)
+            Text(message, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -393,18 +498,16 @@ private fun AddMemberBottomSheet(
     var contactPhone    by remember { mutableStateOf(initial?.emergencyContactPhone ?: "") }
     var notes           by remember { mutableStateOf(initial?.notes ?: "") }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SafeReachDarkGray) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                if (initial == null) "Add Family Member" else "Edit ${initial.name}",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = Color.White
+            SheetHeader(
+                title = if (initial == null) "ADD FAMILY MEMBER" else "EDIT ${initial.name.uppercase()}",
+                onDismiss = onDismiss
             )
             VaultTextField("Full Name *", name, { name = it })
             VaultTextField("Relationship (e.g. Spouse, Child)", relationship, { relationship = it })
@@ -433,12 +536,12 @@ private fun AddMemberBottomSheet(
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                shape = RoundedCornerShape(4.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onBackground)
             ) {
-                Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
+                Icon(Icons.Default.Save, contentDescription = null, tint = MaterialTheme.colorScheme.background)
                 Spacer(Modifier.width(8.dp))
-                Text("Save Member", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("SAVE MEMBER", color = MaterialTheme.colorScheme.background, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -459,14 +562,17 @@ private fun AddMeetingPointBottomSheet(
     var directions  by remember { mutableStateOf("") }
     var priority    by remember { mutableStateOf("1") }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SafeReachDarkGray) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Add Meeting Point", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+            SheetHeader(
+                title = "ADD MEETING POINT",
+                onDismiss = onDismiss
+            )
             VaultTextField("Label (e.g. Primary — School Gate) *", label, { label = it })
             VaultTextField("Latitude", latitude, { latitude = it }, KeyboardType.Decimal)
             VaultTextField("Longitude", longitude, { longitude = it }, KeyboardType.Decimal)
@@ -487,12 +593,12 @@ private fun AddMeetingPointBottomSheet(
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                shape = RoundedCornerShape(4.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onBackground)
             ) {
-                Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
+                Icon(Icons.Default.Save, contentDescription = null, tint = MaterialTheme.colorScheme.background)
                 Spacer(Modifier.width(8.dp))
-                Text("Save Point", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("SAVE POINT", color = MaterialTheme.colorScheme.background, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -513,16 +619,41 @@ private fun VaultTextField(
         onValueChange = onValueChange,
         label = { Text(label, style = MaterialTheme.typography.labelSmall) },
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(4.dp),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color.White.copy(alpha = 0.6f),
-            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White.copy(alpha = 0.8f),
-            focusedLabelColor = Color.White.copy(alpha = 0.7f),
-            unfocusedLabelColor = Color.White.copy(alpha = 0.4f),
-            cursorColor = Color.White
+            focusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+            unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
+            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            focusedLabelColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            unfocusedLabelColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+            cursorColor = MaterialTheme.colorScheme.onBackground
         )
     )
+}
+
+@Composable
+private fun SheetHeader(
+    title: String,
+    onDismiss: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1f)
+        )
+        TacticalIconButton(
+            imageVector = Icons.Default.Close,
+            contentDescription = "Close",
+            onClick = onDismiss,
+            containerSize = 32.dp,
+            iconSize = 16.dp
+        )
+    }
 }

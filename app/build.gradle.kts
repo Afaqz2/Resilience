@@ -95,6 +95,10 @@ dependencies {
     // Maps
     implementation(libs.maplibre.android)
 
+    // Opus codec — uncomment after running `File > Sync Project with Gradle Files` in Android Studio
+    // When enabled, wire OpusEncoder/OpusDecoder in WalkieTalkieManager for 16kbps compressed audio
+    // implementation("io.github.jaredmdobson:concentus:1.0.1")
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

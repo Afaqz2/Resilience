@@ -2,6 +2,7 @@ package com.resilience.app.di
 
 import android.content.Context
 import com.resilience.app.data.db.ResilienceDatabase
+import com.resilience.app.data.db.dao.AlertDao
 import com.resilience.app.data.db.dao.FamilyVaultDao
 import com.resilience.app.data.db.dao.OfflineRegionDao
 import com.resilience.app.data.db.dao.PlaybookDao
@@ -35,4 +36,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideOfflineRegionDao(db: ResilienceDatabase): OfflineRegionDao = db.offlineRegionDao()
+
+    @Provides
+    @Singleton
+    fun provideAlertDao(db: ResilienceDatabase): AlertDao = db.alertDao()
 }
