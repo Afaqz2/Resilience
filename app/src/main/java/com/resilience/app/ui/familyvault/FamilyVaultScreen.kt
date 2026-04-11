@@ -71,68 +71,66 @@ fun FamilyVaultScreen(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-                return@Box
-            }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(
+                        start = 16.dp, end = 16.dp,
+                        top = padding.calculateTopPadding() + 8.dp,
+                        bottom = padding.calculateBottomPadding() + 24.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
 
-            LazyColumn(
-                contentPadding = PaddingValues(
-                    start = 16.dp, end = 16.dp,
-                    top = padding.calculateTopPadding() + 8.dp,
-                    bottom = padding.calculateBottomPadding() + 24.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-
-                // -------- Meeting Points Section --------
-                item {
-                    SectionHeader(
-                        title = "// RALLY POINTS",
-                        icon = Icons.Default.LocationOn,
-                        onAdd = { viewModel.openAddMeetingPointSheet() }
-                    )
-                }
-
-                if (uiState.meetingPoints.isEmpty()) {
+                    // -------- Meeting Points Section --------
                     item {
-                        EmptyState(
-                            message = "No rally points set yet.",
-                            icon = Icons.Default.AddLocation
+                        SectionHeader(
+                            title = "// RALLY POINTS",
+                            icon = Icons.Default.LocationOn,
+                            onAdd = { viewModel.openAddMeetingPointSheet() }
                         )
                     }
-                }
 
-                items(uiState.meetingPoints, key = { "pt_${it.id}" }) { point ->
-                    MeetingPointCard(
-                        point = point,
-                        onDelete = { viewModel.deleteMeetingPoint(point) }
-                    )
-                }
+                    if (uiState.meetingPoints.isEmpty()) {
+                        item {
+                            EmptyState(
+                                message = "No rally points set yet.",
+                                icon = Icons.Default.AddLocation
+                            )
+                        }
+                    }
 
-                // -------- Family Members Section --------
-                item {
-                    Spacer(Modifier.height(8.dp))
-                    SectionHeader(
-                        title = "// CONTACTS",
-                        icon = Icons.Default.Group,
-                        onAdd = { viewModel.openAddMemberSheet() }
-                    )
-                }
-
-                if (uiState.members.isEmpty()) {
-                    item {
-                        EmptyState(
-                            message = "No family members added yet.",
-                            icon = Icons.Default.PersonAdd
+                    items(uiState.meetingPoints, key = { "pt_${it.id}" }) { point ->
+                        MeetingPointCard(
+                            point = point,
+                            onDelete = { viewModel.deleteMeetingPoint(point) }
                         )
                     }
-                }
 
-                items(uiState.members, key = { "member_${it.id}" }) { member ->
-                    FamilyMemberCard(
-                        member = member,
-                        onEdit = { viewModel.openAddMemberSheet(member) },
-                        onDelete = { viewModel.deleteMember(member) }
-                    )
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        SectionHeader(
+                            title = "// CONTACTS",
+                            icon = Icons.Default.Group,
+                            onAdd = { viewModel.openAddMemberSheet() }
+                        )
+                    }
+
+                    if (uiState.members.isEmpty()) {
+                        item {
+                            EmptyState(
+                                message = "No family members added yet.",
+                                icon = Icons.Default.PersonAdd
+                            )
+                        }
+                    }
+
+                    items(uiState.members, key = { "member_${it.id}" }) { member ->
+                        FamilyMemberCard(
+                            member = member,
+                            onEdit = { viewModel.openAddMemberSheet(member) },
+                            onDelete = { viewModel.deleteMember(member) }
+                        )
+                    }
                 }
             }
         }

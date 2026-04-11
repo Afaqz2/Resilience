@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
 import android.net.wifi.aware.*
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -75,13 +76,24 @@ class MeshDiscoveryManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
+        private const val TAG               = "MeshDiscovery"
         private const val SERVICE_NAME      = "safereach_mesh"
         private const val MAX_PEERS         = 50
         private const val BLE_MANUFACTURER  = 0xFACE  // custom manufacturer ID (test range)
         private const val WIFI_SCAN_INTERVAL = 10_000L // ms between Wi-Fi scans
+        private const val PREFS_NAME        = "mesh_prefs"
+        private const val PREF_CALL_SIGN    = "call_sign"
     }
 
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    /** Stable call sign persisted across restarts so peers see a consistent identity. */
+    private val callSign: String by lazy {
+        prefs.getString(PREF_CALL_SIGN, null) ?: generateCallSign().also { cs ->
+            prefs.edit().putString(PREF_CALL_SIGN, cs).apply()
+        }
+    }
 
     // ── Shared State ─────────────────────────────────────────────────────────
     private val _meshState   = MutableStateFlow(MeshState.IDLE)
@@ -189,6 +201,7 @@ class MeshDiscoveryManager @Inject constructor(
             }
 
             override fun onAttachFailed() {
+                Log.w(TAG, "Wi-Fi Aware attach failed — NAN unavailable on this device/session")
                 _meshState.value = MeshState.IDLE
             }
         }, null)
@@ -196,8 +209,7 @@ class MeshDiscoveryManager @Inject constructor(
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun publishPresence(session: WifiAwareSession, frequency: Int) {
-        val callSign = generateCallSign()
-        val payload  = "$frequency:$callSign".toByteArray()
+        val payload = "$frequency:$callSign".toByteArray(Charsets.UTF_8)
 
         val config = PublishConfig.Builder()
             .setServiceName(SERVICE_NAME)
@@ -228,12 +240,18 @@ class MeshDiscoveryManager @Inject constructor(
                 serviceSpecificInfo: ByteArray,
                 matchFilter: List<ByteArray>
             ) {
-                val payload = serviceSpecificInfo.decodeToString()
-                val parts   = payload.split(":")
+                if (serviceSpecificInfo.isEmpty()) return
+                val payload = try {
+                    serviceSpecificInfo.toString(Charsets.UTF_8)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Wi-Fi Aware: malformed peer payload, skipping")
+                    return
+                }
+                val parts = payload.split(":")
                 if (parts.size < 2) return
 
-                val peerFrequency = parts[0].toIntOrNull() ?: return
-                val peerCallSign  = parts[1]
+                val peerFrequency = parts[0].trim().toIntOrNull() ?: return
+                val peerCallSign  = parts[1].trim().takeIf { it.isNotEmpty() } ?: return
                 val peerId        = peerHandle.hashCode().toString()
 
                 addOrUpdatePeer(NearbyPeer(
@@ -258,11 +276,28 @@ class MeshDiscoveryManager @Inject constructor(
 
     // ── BLE Discovery (fallback) ──────────────────────────────────────────────
 
-    @Suppress("MissingPermission")
     private fun startBleDiscovery(frequency: Int) {
         val adapter = bluetoothAdapter ?: return
-        startBleAdvertising(adapter, frequency)
-        startBleScanning(adapter)
+
+        val canAdvertise = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADVERTISE) ==
+                PackageManager.PERMISSION_GRANTED
+
+        val canScan = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) ==
+                PackageManager.PERMISSION_GRANTED
+
+        if (!canAdvertise) {
+            Log.w(TAG, "BLUETOOTH_ADVERTISE not granted — skipping BLE advertising")
+        } else {
+            startBleAdvertising(adapter, frequency)
+        }
+
+        if (!canScan) {
+            Log.w(TAG, "BLUETOOTH_SCAN not granted — skipping BLE scanning")
+        } else {
+            startBleScanning(adapter)
+        }
     }
 
     @Suppress("MissingPermission")
@@ -270,8 +305,7 @@ class MeshDiscoveryManager @Inject constructor(
         val advertiser = adapter.bluetoothLeAdvertiser ?: return
         bleAdvertiser  = advertiser
 
-        val callSign   = generateCallSign()
-        val payload    = "$frequency:$callSign".toByteArray()
+        val payload = "$frequency:$callSign".toByteArray(Charsets.UTF_8)
 
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
@@ -288,7 +322,10 @@ class MeshDiscoveryManager @Inject constructor(
             override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
                 _bleState.value = BleState.ADVERTISING
             }
-            override fun onStartFailure(errorCode: Int) { /* log */ }
+            override fun onStartFailure(errorCode: Int) {
+                Log.w(TAG, "BLE advertising failed, errorCode=$errorCode — peers will not see this device via BLE")
+                _bleState.value = BleState.IDLE
+            }
         })
     }
 
@@ -337,8 +374,10 @@ class MeshDiscoveryManager @Inject constructor(
 
         // Try to decode SafeReach payload
         val payload = result.scanRecord?.getManufacturerSpecificData(BLE_MANUFACTURER)
-        val decoded = payload?.decodeToString() ?: ""
-        val parts   = decoded.split(":")
+        val decoded = payload?.let {
+            try { it.toString(Charsets.UTF_8) } catch (e: Exception) { "" }
+        } ?: ""
+        val parts = decoded.split(":")
         val isSaveReach = parts.size >= 2
 
         // Update BLE device list (non-SaveReach devices shown in scanner too)

@@ -8,6 +8,7 @@ import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.resilience.app.data.mesh.WifiAwareTransport
 import com.resilience.app.data.mesh.MeshDiscoveryManager
@@ -22,6 +23,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "WalkieTalkie"
 
 enum class PttState { IDLE, TRANSMITTING, RECEIVING }
 
@@ -191,7 +194,11 @@ class WalkieTalkieManager @Inject constructor(
                 publishSession = pubSession,
                 subscribeSession = subSession,
                 peerHandle = peerHandle,
-                isPublisher = pubSession != null
+                isPublisher = pubSession != null,
+                onNetworkUnavailable = {
+                    Log.w(TAG, "Peer transport unavailable — reverting to loopback mode")
+                    hasPeerTransport = false
+                }
             ) { _, inetAddress ->
                 hasPeerTransport = true
                 val host = inetAddress?.address?.hostAddress
@@ -229,6 +236,17 @@ class WalkieTalkieManager @Inject constructor(
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    /**
+     * Drops the current peer UDP transport without releasing the audio track.
+     * Call when the user changes frequency so the next peer connection starts fresh.
+     */
+    fun resetPeerTransport() {
+        hasPeerTransport = false
+        transport.release()
+        // Re-arm the receive loop so incoming frames on the new channel are handled
+        transport.startReceiving { frame -> playIncomingFrame(frame) }
+    }
 
     fun release() {
         staticJob?.cancel()

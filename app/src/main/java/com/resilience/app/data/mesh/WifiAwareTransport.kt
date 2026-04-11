@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.aware.*
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -17,6 +18,8 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "WifiAwareTransport"
 
 private const val AUDIO_PORT = 51314  // UDP port for mesh audio
 
@@ -69,6 +72,7 @@ class WifiAwareTransport @Inject constructor(
         subscribeSession: SubscribeDiscoverySession?,
         peerHandle: PeerHandle,
         isPublisher: Boolean,
+        onNetworkUnavailable: () -> Unit = {},
         onNetworkBound: (Network, InetSocketAddress?) -> Unit
     ) {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE)
@@ -97,7 +101,10 @@ class WifiAwareTransport @Inject constructor(
                         InetSocketAddress(localAddr, AUDIO_PORT) else null
                     onNetworkBound(network, localInet)
                 }
-                override fun onUnavailable() { /* timeout */ }
+                override fun onUnavailable() {
+                    Log.w(TAG, "Wi-Fi Aware network request timed out (10 s) — no peer data path established")
+                    onNetworkUnavailable()
+                }
             },
             android.os.Handler(android.os.Looper.getMainLooper()),
             10_000

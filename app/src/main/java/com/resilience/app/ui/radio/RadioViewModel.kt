@@ -77,6 +77,10 @@ class RadioViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RadioUiState())
     val uiState: StateFlow<RadioUiState> = _uiState.asStateFlow()
 
+    // Tracks the peer ID we last attempted to connect to, preventing repeated
+    // connection attempts for the same peer on every flow emission.
+    private var lastConnectionAttemptPeerId: String? = null
+
     init {
         refreshHardwareCapabilities()
         collectFromManagers()
@@ -132,16 +136,21 @@ class RadioViewModel @Inject constructor(
                     )
                 }
 
-                // Automatically attempt to pair with Wi-Fi Aware peers on the same frequency
+                // Automatically attempt to pair with the strongest Wi-Fi Aware peer on this channel.
+                // Guard: only attempt once per peer ID to avoid repeated requestNetwork() calls
+                // on every flow emission while a connection is already in progress.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val activeFrequency = _uiState.value.currentFrequency
-                    val peersOnChannel = peerList.filter { 
+                    val peersOnChannel = peerList.filter {
                         it.frequency == activeFrequency && it.transport == PeerTransport.WIFI_AWARE && it.handle != null
                     }
-                    
+
                     if (peersOnChannel.isNotEmpty() && !walkieTalkie.hasPeerTransport) {
                         val bestPeer = peersOnChannel.maxByOrNull { it.signalStrength }
-                        bestPeer?.handle?.let { walkieTalkie.connectToPeer(it) }
+                        if (bestPeer != null && bestPeer.peerId != lastConnectionAttemptPeerId) {
+                            lastConnectionAttemptPeerId = bestPeer.peerId
+                            walkieTalkie.connectToPeer(bestPeer.handle!!)
+                        }
                     }
                 }
             }.collect()
@@ -158,6 +167,9 @@ class RadioViewModel @Inject constructor(
             currentFrequency = clamped,
             statusLine = buildStatusLine(clamped, it.pttState, it.agentState, it.isAiMode)
         ) }
+        // Reset peer link and connection-attempt guard so the new channel gets a fresh start
+        lastConnectionAttemptPeerId = null
+        walkieTalkie.resetPeerTransport()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             meshDiscovery.stopDiscovery()
             meshDiscovery.startDiscovery(clamped)
@@ -235,6 +247,10 @@ class RadioViewModel @Inject constructor(
      */
     fun onPermissionResult() {
         refreshHardwareCapabilities()
+        // Re-run discovery so newly-granted BLE/Wi-Fi permissions take effect immediately
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            meshDiscovery.startDiscovery(_uiState.value.currentFrequency)
+        }
     }
 
     fun onPermissionGranted() {

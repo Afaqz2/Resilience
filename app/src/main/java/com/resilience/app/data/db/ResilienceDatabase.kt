@@ -56,6 +56,7 @@ abstract class ResilienceDatabase : RoomDatabase() {
         private const val DB_PASSPHRASE = "resilience_secure_key_v1"
 
         fun create(context: Context): ResilienceDatabase {
+            SQLiteDatabase.loadLibs(context.applicationContext)
             val passphrase = SQLiteDatabase.getBytes(DB_PASSPHRASE.toCharArray())
             val factory = SupportFactory(passphrase)
 
