@@ -1,6 +1,8 @@
 package com.resilience.app.ui.dashboard
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -15,20 +17,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.resilience.app.ui.theme.SafeReachDarkGray
-import com.resilience.app.ui.theme.SafeReachOffWhite
+import com.resilience.app.ui.components.TacticalCard
+import com.resilience.app.ui.components.TacticalIconButton
+import com.resilience.app.ui.components.TacticalScannerOverlay
 
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToPlaybooks: () -> Unit = {},
-    onNavigateToFamilyVault: () -> Unit = {}
+    onNavigateToFamilyVault: () -> Unit = {},
+    onNavigateToMaps: () -> Unit = {},
+    onNavigateToInventory: () -> Unit = {},
+    onNavigateToRadio: () -> Unit = {},
+    onNavigateToAiChat: () -> Unit = {},
+    onNavigateToAlerts: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -36,40 +43,92 @@ fun DashboardScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            // 1. Header
-            SafeReachHeader()
+        Box(modifier = Modifier.fillMaxSize()) {
+            // METRO 2033: Background noise / scanner overlay. Prominent on Home.
+            TacticalScannerOverlay(isProminent = true)
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // 1. Header
+                SafeReachHeader()
 
-            // 2. Top Control Grid
-            ControlGrid(
-                isCrisisMode = uiState.isCrisisMode,
-                onThemeToggle = { viewModel.toggleCrisisMode(!uiState.isCrisisMode) }
-            )
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // 2. Emergency Mode Button
+                EmergencyModeButton()
 
-            // 3. Emergency Mode Button
-            EmergencyModeButton()
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // 3. System Status
+                Text(
+                    text = "// NAVIGATION",
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.labelMedium
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
+                // 4. Primary Navigation Grid
+                PrimaryNavigationGrid(
+                    isCrisisMode = uiState.isCrisisMode,
+                    onNavigateToPlaybooks = onNavigateToPlaybooks,
+                    onNavigateToFamilyVault = onNavigateToFamilyVault,
+                    onNavigateToMaps = onNavigateToMaps,
+                    onNavigateToInventory = onNavigateToInventory,
+                    onNavigateToRadio = onNavigateToRadio,
+                    onNavigateToAiChat = onNavigateToAiChat,
+                    onNavigateToAlerts = onNavigateToAlerts,
+                    onNavigateToSettings = onNavigateToSettings
+                )
 
-            // 4. Primary Navigation Grid
-            PrimaryNavigationGrid(
-                isCrisisMode = uiState.isCrisisMode,
-                onNavigateToPlaybooks = onNavigateToPlaybooks,
-                onNavigateToFamilyVault = onNavigateToFamilyVault
-            )
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // 5. Action Section: What do I do right now?
-            ActionSection(onNavigateToPlaybooks = onNavigateToPlaybooks)
+                // 5. Active Directive (replaces Action Section)
+                ActiveDirectiveCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    onNavigateToPlaybooks = onNavigateToPlaybooks
+                )
+                
+                // 6. Bottom System Nominal Bar
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 8.dp)
+                ) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.14f))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                modifier = Modifier.size(8.dp),
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                color = MaterialTheme.colorScheme.secondary // Olive
+                            ) {}
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "SYSTEM NOMINAL",
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        Text(
+                            text = "V 2.4.1",
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -83,150 +142,130 @@ fun SafeReachHeader() {
         // Logo Container
         Box(
             modifier = Modifier
-                .size(56.dp)
-                .background(SafeReachDarkGray, RoundedCornerShape(16.dp)),
+                .size(48.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Shield,
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
+                tint = MaterialTheme.colorScheme.primary, // Rust
+                modifier = Modifier.size(24.dp)
             )
         }
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "SafeReach",
+                text = "SAFEREACH",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                fontSize = 24.sp
+                letterSpacing = 2.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Offline-first emergency companion",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                text = "TACTICAL SURVIVAL SYSTEM",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
             )
         }
-    }
-}
-
-@Composable
-fun ControlGrid(
-    isCrisisMode: Boolean,
-    onThemeToggle: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Language Selector
-            ControlItem(
-                label = "English",
-                icon = Icons.Default.Language,
-                modifier = Modifier.weight(1f),
-                hasDropdown = true
+            TacticalIconButton(
+                imageVector = Icons.Default.Language,
+                contentDescription = "Language",
+                onClick = {},
+                containerSize = 36.dp,
+                iconSize = 16.dp
             )
-            // QR Dossier
-            ControlItem(
-                label = "QR dossier",
-                icon = Icons.Default.QrCodeScanner,
-                modifier = Modifier.weight(1f)
+            TacticalIconButton(
+                imageVector = Icons.Default.QrCodeScanner,
+                contentDescription = "QR dossier",
+                onClick = {},
+                containerSize = 36.dp,
+                iconSize = 16.dp
             )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Saver Toggle
-            ControlItem(
-                label = "Saver off",
-                icon = Icons.Default.BatteryChargingFull,
-                modifier = Modifier.weight(1f)
-            )
-            // Theme Toggle
-            ControlItem(
-                label = "Theme",
-                icon = if (isCrisisMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                modifier = Modifier.weight(1f),
-                onClick = onThemeToggle
-            )
-        }
-    }
-}
-
-@Composable
-fun ControlItem(
-    label: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    hasDropdown: Boolean = false,
-    onClick: () -> Unit = {}
-) {
-    Surface(
-        modifier = modifier
-            .height(56.dp)
-            .clickable { onClick() },
-        color = SafeReachDarkGray,
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = label,
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
-            )
-            if (hasDropdown) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.6f)
-                )
-            }
         }
     }
 }
 
 @Composable
 fun EmergencyModeButton() {
-    Button(
-        onClick = { /* TODO */ },
+    // emergency-pulse: glow expands and contracts on amber color
+    val infiniteTransition = rememberInfiniteTransition(label = "emergency")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow_alpha"
+    )
+    val glowRadius by infiniteTransition.animateFloat(
+        initialValue = 4f,
+        targetValue = 16f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow_radius"
+    )
+    val amberColor = MaterialTheme.colorScheme.tertiary
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+            .height(64.dp)
+            .drawBehind {
+                // Outer amber glow pulse
+                drawRect(
+                    color = amberColor.copy(alpha = glowAlpha * 0.25f),
+                    size = size.copy(
+                        width = size.width + glowRadius * 2,
+                        height = size.height + glowRadius * 2
+                    ),
+                    topLeft = androidx.compose.ui.geometry.Offset(-glowRadius, -glowRadius)
+                )
+            },
+        color = MaterialTheme.colorScheme.tertiary, // Amber
+        shape = RoundedCornerShape(4.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
+        )
     ) {
-        Icon(
-            imageVector = Icons.Default.FlashOn,
-            contentDescription = null,
-            tint = Color.Black
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Emergency mode",
-            color = Color.Black,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp
-        )
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxSize()
+                .clickable { /* TODO */ }
+        ) {
+            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.background)
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "EMERGENCY MODE",
+                color = MaterialTheme.colorScheme.background,
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.background)
+        }
     }
 }
 
 @Composable
 fun PrimaryNavigationGrid(
     isCrisisMode: Boolean,
-    onNavigateToPlaybooks: () -> Unit = {},
-    onNavigateToFamilyVault: () -> Unit = {}
+    onNavigateToPlaybooks: () -> Unit,
+    onNavigateToFamilyVault: () -> Unit,
+    onNavigateToMaps: () -> Unit,
+    onNavigateToInventory: () -> Unit,
+    onNavigateToRadio: () -> Unit = {},
+    onNavigateToAiChat: () -> Unit = {},
+    onNavigateToAlerts: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
 ) {
     data class NavItemDef(
         val label: String,
@@ -236,13 +275,15 @@ fun PrimaryNavigationGrid(
     )
 
     val navItems = listOf(
-        NavItemDef("Home",        Icons.Default.Home,            isActive = true),
-        NavItemDef("Family plan", Icons.Default.Group,           onClick = onNavigateToFamilyVault),
-        NavItemDef("Inventory",   Icons.Default.Inventory),
-        NavItemDef("Playbooks",   Icons.Default.MenuBook,        onClick = onNavigateToPlaybooks),
-        NavItemDef("Maps",        Icons.Default.Map),
-        NavItemDef("Alerts",      Icons.Default.Notifications),
-        NavItemDef("Settings",    Icons.Default.Settings)
+        NavItemDef("HOME",        Icons.Default.Home,            isActive = true),
+        NavItemDef("FAMILY PLAN", Icons.Default.Group,           onClick = onNavigateToFamilyVault),
+        NavItemDef("INVENTORY",   Icons.Default.Inventory,       onClick = onNavigateToInventory),
+        NavItemDef("PLAYBOOKS",   Icons.Default.MenuBook,        onClick = onNavigateToPlaybooks),
+        NavItemDef("MAPS",        Icons.Default.Map,             onClick = onNavigateToMaps),
+        NavItemDef("RF COMMS",    Icons.Default.Radio,           onClick = onNavigateToRadio),
+        NavItemDef("AI CHAT",     Icons.Default.Psychology,      onClick = onNavigateToAiChat),
+        NavItemDef("ALERTS",      Icons.Default.Notifications,   onClick = onNavigateToAlerts),
+        NavItemDef("SETTINGS",    Icons.Default.Settings,        onClick = onNavigateToSettings)
     )
 
     LazyVerticalGrid(
@@ -252,130 +293,26 @@ fun PrimaryNavigationGrid(
         modifier = Modifier.fillMaxWidth()
     ) {
         items(navItems) { item ->
-            Surface(
+            TacticalCard(
                 modifier = Modifier
-                    .aspectRatio(1.5f)
-                    .clickable { item.onClick() },
-                shape = RoundedCornerShape(16.dp),
-                color = if (item.isActive) Color.White else SafeReachDarkGray
+                    .aspectRatio(1.2f)
+                    .clickable { item.onClick() }
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = item.icon,
                             contentDescription = null,
-                            tint = if (item.isActive) Color.Black else Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
+                            // Active: rust primary; Inactive: muted foreground per spec
+                            tint = if (item.isActive) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                            modifier = Modifier.size(20.dp) // spec: w-5 h-5
                         )
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(8.dp))
                         Text(
                             text = item.label,
-                            color = if (item.isActive) Color.Black else Color.White,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ActionSection(onNavigateToPlaybooks: () -> Unit = {}) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = SafeReachDarkGray)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = SafeReachDarkGray
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "What do I do right now?",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "One-tap actions work fully offline",
-                        color = Color.White.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Surface(
-                    color = Color.White.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Local-first",
-                        color = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Sub-action Card
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToPlaybooks() },
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White.copy(alpha = 0.05f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MenuBook,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Open Playbooks",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "First aid, shelter, water & more",
-                            color = Color.White.copy(alpha = 0.6f),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Surface(
-                        color = Color(0xFF1B5E20).copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = "~30s",
-                            color = Color(0xFF81C784),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            color = if (item.isActive) MaterialTheme.colorScheme.onBackground
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -385,4 +322,67 @@ fun ActionSection(onNavigateToPlaybooks: () -> Unit = {}) {
     }
 }
 
-data class NavItem(val label: String, val icon: ImageVector, val isActive: Boolean = false)
+@Composable
+fun ActiveDirectiveCard(
+    modifier: Modifier = Modifier,
+    onNavigateToPlaybooks: () -> Unit
+) {
+    TacticalCard(modifier = modifier.clickable { onNavigateToPlaybooks() }) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(8.dp),
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.primary // Rust
+                ) {}
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "ACTIVE DIRECTIVE",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "What do I do right now?",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Review your emergency playbook. Ensure supplies are stocked. Verify rally points with family members. Stay vigilant.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "PRIORITY: MEDIUM",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Surface(
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "24H AGO",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+    }
+}

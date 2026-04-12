@@ -9,32 +9,34 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val NormalColorScheme = lightColorScheme(
-    primary = NormalPrimary,
-    secondary = NormalSecondary,
-    tertiary = NormalTertiary,
-    background = NormalBackground,
-    surface = NormalSurface,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color.Black,
-    onSurface = Color.Black,
-    surfaceVariant = SafeReachDarkGray,
-    onSurfaceVariant = Color.White
+private val NormalColorScheme = darkColorScheme(
+    primary = TacticalPrimaryRust,
+    secondary = TacticalSecondaryOlive,
+    tertiary = TacticalAccentAmber,
+    background = TacticalBackground,
+    surface = TacticalSurface,
+    onPrimary = TacticalBackground,
+    onSecondary = TacticalBackground,
+    onTertiary = TacticalBackground,
+    onBackground = TacticalText,
+    onSurface = TacticalText,
+    surfaceVariant = TacticalSurface,
+    onSurfaceVariant = TacticalText,
+    error = TacticalDestructive
 )
 
 private val CrisisColorScheme = darkColorScheme(
-    primary = Color.White,
-    secondary = Color.Gray,
-    tertiary = Color.LightGray,
-    background = Color.Black,
-    surface = Color.Black,
-    onPrimary = Color.Black,
-    onSecondary = Color.Black,
-    onTertiary = Color.Black,
-    onBackground = Color.White,
-    onSurface = Color.White
+    primary = TacticalAccentAmber,
+    secondary = TacticalSecondaryOlive,
+    tertiary = TacticalPrimaryRust,
+    background = CrisisBackground,
+    surface = CrisisSurface,
+    onPrimary = CrisisBackground,
+    onSecondary = CrisisBackground,
+    onTertiary = CrisisBackground,
+    onBackground = CrisisPrimary,
+    onSurface = CrisisPrimary,
+    error = CrisisError
 )
 
 @Composable
