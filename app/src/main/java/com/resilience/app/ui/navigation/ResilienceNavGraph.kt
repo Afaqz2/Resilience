@@ -11,6 +11,7 @@ import com.resilience.app.data.db.entity.PlaybookEntity
 import com.resilience.app.ui.aichat.AiChatScreen
 import com.resilience.app.ui.alerts.AlertsScreen
 import com.resilience.app.ui.dashboard.DashboardScreen
+import com.resilience.app.ui.emergency.EmergencyScreen
 import com.resilience.app.ui.familyvault.FamilyVaultScreen
 import com.resilience.app.ui.inventory.InventoryScreen
 import com.resilience.app.ui.maps.MapScreen
@@ -39,13 +40,15 @@ fun ResilienceNavGraph(navController: NavHostController) {
         composable(Routes.DASHBOARD) {
             DashboardScreen(
                 onNavigateToPlaybooks   = { navController.navigate(Routes.PLAYBOOK_LIST) },
+                onNavigateToDiyPlaybooks = { navController.navigate(Routes.DIY_PLAYBOOKS) },
                 onNavigateToFamilyVault = { navController.navigate(Routes.FAMILY_VAULT) },
                 onNavigateToMaps        = { navController.navigate(Routes.MAPS) },
                 onNavigateToInventory   = { navController.navigate(Routes.INVENTORY) },
                 onNavigateToRadio       = { navController.navigate(Routes.RADIO) },
                 onNavigateToAiChat      = { navController.navigate(Routes.AI_CHAT) },
                 onNavigateToAlerts      = { navController.navigate(Routes.ALERTS) },
-                onNavigateToSettings    = { navController.navigate(Routes.SETTINGS) }
+                onNavigateToSettings    = { navController.navigate(Routes.SETTINGS) },
+                onNavigateToEmergency   = { navController.navigate(Routes.EMERGENCY) }
             )
         }
 
@@ -54,8 +57,28 @@ fun ResilienceNavGraph(navController: NavHostController) {
             val viewModel: PlaybookViewModel = hiltViewModel(backEntry)
             PlaybookListScreen(
                 viewModel = viewModel,
+                title = "Survival Playbooks",
+                subtitle = "Fully offline · Tap to read",
+                initialCategory = null,
+                excludedCategories = setOf("DIY"),
                 onPlaybookClick = { playbook ->
                     // Pass ID via route; ViewModel is retrieved from back-stack in Detail
+                    navController.navigate(Routes.playbookDetail(playbook.id))
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.DIY_PLAYBOOKS) { backEntry ->
+            val viewModel: PlaybookViewModel = hiltViewModel(backEntry)
+            PlaybookListScreen(
+                viewModel = viewModel,
+                title = "DIY Fieldcraft",
+                subtitle = "Improvised tools and scratch-built survival guides",
+                initialCategory = "DIY",
+                includedCategories = setOf("DIY"),
+                showAllChip = false,
+                onPlaybookClick = { playbook ->
                     navController.navigate(Routes.playbookDetail(playbook.id))
                 },
                 onBack = { navController.popBackStack() }
@@ -69,9 +92,9 @@ fun ResilienceNavGraph(navController: NavHostController) {
         ) { backEntry ->
             val playbookId = backEntry.arguments?.getString("playbookId") ?: return@composable
 
-            // Share ViewModel with the List entry so TTS state is preserved on Back
+            // Share ViewModel with the previous list entry so TTS state is preserved on Back
             val listEntry = remember(backEntry) {
-                navController.getBackStackEntry(Routes.PLAYBOOK_LIST)
+                navController.previousBackStackEntry ?: navController.getBackStackEntry(Routes.PLAYBOOK_LIST)
             }
             val viewModel: PlaybookViewModel = hiltViewModel(listEntry)
             val filteredPlaybooks by viewModel.filteredPlaybooks.collectAsState()
@@ -127,6 +150,13 @@ fun ResilienceNavGraph(navController: NavHostController) {
         // ── Settings ──────────────────────────────────────────────────────
         composable(Routes.SETTINGS) {
             SettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        // ── Emergency Overlay ─────────────────────────────────────────────────
+        composable(Routes.EMERGENCY) {
+            EmergencyScreen(
+                onDeactivate = { navController.popBackStack() }
+            )
         }
     }
 }

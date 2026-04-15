@@ -17,7 +17,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,13 +33,15 @@ import com.resilience.app.ui.components.TacticalScannerOverlay
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToPlaybooks: () -> Unit = {},
+    onNavigateToDiyPlaybooks: () -> Unit = {},
     onNavigateToFamilyVault: () -> Unit = {},
     onNavigateToMaps: () -> Unit = {},
     onNavigateToInventory: () -> Unit = {},
     onNavigateToRadio: () -> Unit = {},
     onNavigateToAiChat: () -> Unit = {},
     onNavigateToAlerts: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToEmergency: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -58,7 +64,7 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // 2. Emergency Mode Button
-                EmergencyModeButton()
+                EmergencyModeButton(onNavigateToEmergency = onNavigateToEmergency)
 
                 Spacer(modifier = Modifier.height(24.dp))
                 
@@ -75,11 +81,11 @@ fun DashboardScreen(
                 PrimaryNavigationGrid(
                     isCrisisMode = uiState.isCrisisMode,
                     onNavigateToPlaybooks = onNavigateToPlaybooks,
+                    onNavigateToDiyPlaybooks = onNavigateToDiyPlaybooks,
                     onNavigateToFamilyVault = onNavigateToFamilyVault,
                     onNavigateToMaps = onNavigateToMaps,
                     onNavigateToInventory = onNavigateToInventory,
                     onNavigateToRadio = onNavigateToRadio,
-                    onNavigateToAiChat = onNavigateToAiChat,
                     onNavigateToAlerts = onNavigateToAlerts,
                     onNavigateToSettings = onNavigateToSettings
                 )
@@ -128,6 +134,21 @@ fun DashboardScreen(
                         )
                     }
                 }
+            }
+
+            // Floating Chat Button (Bottom Right)
+            FloatingActionButton(
+                onClick = onNavigateToAiChat,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Chat,
+                    contentDescription = "Chat"
+                )
             }
         }
     }
@@ -191,66 +212,95 @@ fun SafeReachHeader() {
 }
 
 @Composable
-fun EmergencyModeButton() {
-    // emergency-pulse: glow expands and contracts on amber color
+fun EmergencyModeButton(onNavigateToEmergency: () -> Unit = {}) {
     val infiniteTransition = rememberInfiniteTransition(label = "emergency")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.75f,
+    val glowProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
+            animation = tween(2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "glow_alpha"
+        label = "glow_progress"
     )
-    val glowRadius by infiniteTransition.animateFloat(
-        initialValue = 4f,
-        targetValue = 16f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glow_radius"
-    )
-    val amberColor = MaterialTheme.colorScheme.tertiary
+    val amberColor = Color(0xFFD4A017) // hsl(45 70% 46%) - Hazard Amber
+    val foregroundColor = Color(0xFF1A1A1A) // hsl(0 0% 10%)
+    val buttonShape = RoundedCornerShape(4.dp)
+    val outerPadding = 6.dp
 
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
-            .drawBehind {
-                // Outer amber glow pulse
-                drawRect(
-                    color = amberColor.copy(alpha = glowAlpha * 0.25f),
-                    size = size.copy(
-                        width = size.width + glowRadius * 2,
-                        height = size.height + glowRadius * 2
-                    ),
-                    topLeft = androidx.compose.ui.geometry.Offset(-glowRadius, -glowRadius)
-                )
+            .height(76.dp)
+            .drawWithCache {
+                val paddingPx = outerPadding.toPx()
+                val coreWidth = size.width - (paddingPx * 2)
+                val coreHeight = size.height - (paddingPx * 2)
+                val coreTopLeft = Offset(paddingPx, paddingPx)
+                val innerSpread = 2.dp.toPx() + (4.dp.toPx() * glowProgress)
+                val outerSpread = 6.dp.toPx() + (8.dp.toPx() * glowProgress)
+                val innerAlpha = 0.10f + (0.18f * glowProgress)
+                val outerAlpha = 0.04f + (0.10f * glowProgress)
+                val cornerPx = 4.dp.toPx()
+
+                onDrawBehind {
+                    drawRoundRect(
+                        color = amberColor.copy(alpha = outerAlpha),
+                        topLeft = Offset(
+                            coreTopLeft.x - outerSpread,
+                            coreTopLeft.y - outerSpread
+                        ),
+                        size = Size(
+                            coreWidth + (outerSpread * 2),
+                            coreHeight + (outerSpread * 2)
+                        ),
+                        cornerRadius = CornerRadius(cornerPx + outerSpread, cornerPx + outerSpread)
+                    )
+                    drawRoundRect(
+                        color = amberColor.copy(alpha = innerAlpha),
+                        topLeft = Offset(
+                            coreTopLeft.x - innerSpread,
+                            coreTopLeft.y - innerSpread
+                        ),
+                        size = Size(
+                            coreWidth + (innerSpread * 2),
+                            coreHeight + (innerSpread * 2)
+                        ),
+                        cornerRadius = CornerRadius(cornerPx + innerSpread, cornerPx + innerSpread)
+                    )
+                }
             },
-        color = MaterialTheme.colorScheme.tertiary, // Amber
-        shape = RoundedCornerShape(4.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
-        )
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxSize()
-                .clickable { /* TODO */ }
-        ) {
-            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.background)
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "EMERGENCY MODE",
-                color = MaterialTheme.colorScheme.background,
-                style = MaterialTheme.typography.titleLarge
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = outerPadding),
+            color = amberColor,
+            shape = buttonShape,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                amberColor.copy(alpha = 0.5f)
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.background)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onNavigateToEmergency() }
+            ) {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = foregroundColor)
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "EMERGENCY MODE",
+                    color = foregroundColor,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Icon(Icons.Default.Warning, contentDescription = null, tint = foregroundColor)
+            }
         }
     }
 }
@@ -259,6 +309,7 @@ fun EmergencyModeButton() {
 fun PrimaryNavigationGrid(
     isCrisisMode: Boolean,
     onNavigateToPlaybooks: () -> Unit,
+    onNavigateToDiyPlaybooks: () -> Unit,
     onNavigateToFamilyVault: () -> Unit,
     onNavigateToMaps: () -> Unit,
     onNavigateToInventory: () -> Unit,
@@ -279,9 +330,9 @@ fun PrimaryNavigationGrid(
         NavItemDef("FAMILY PLAN", Icons.Default.Group,           onClick = onNavigateToFamilyVault),
         NavItemDef("INVENTORY",   Icons.Default.Inventory,       onClick = onNavigateToInventory),
         NavItemDef("PLAYBOOKS",   Icons.Default.MenuBook,        onClick = onNavigateToPlaybooks),
+        NavItemDef("DIY",         Icons.Default.Handyman,        onClick = onNavigateToDiyPlaybooks),
         NavItemDef("MAPS",        Icons.Default.Map,             onClick = onNavigateToMaps),
         NavItemDef("RF COMMS",    Icons.Default.Radio,           onClick = onNavigateToRadio),
-        NavItemDef("AI CHAT",     Icons.Default.Psychology,      onClick = onNavigateToAiChat),
         NavItemDef("ALERTS",      Icons.Default.Notifications,   onClick = onNavigateToAlerts),
         NavItemDef("SETTINGS",    Icons.Default.Settings,        onClick = onNavigateToSettings)
     )

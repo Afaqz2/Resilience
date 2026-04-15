@@ -27,20 +27,21 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.mapbox.mapboxsdk.Mapbox
-import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
-import com.mapbox.mapboxsdk.geometry.LatLng
-import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions
-import com.mapbox.mapboxsdk.location.modes.CameraMode
-import com.mapbox.mapboxsdk.location.modes.RenderMode
-import com.mapbox.mapboxsdk.maps.MapView
-import com.mapbox.mapboxsdk.maps.MapboxMap
-import com.mapbox.mapboxsdk.maps.Style
-import com.mapbox.mapboxsdk.style.layers.CircleLayer
-import com.mapbox.mapboxsdk.style.layers.PropertyFactory
-import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import com.resilience.app.maps.OfflineMapManager
 import com.resilience.app.ui.theme.SafeReachDarkGray
+import org.maplibre.android.MapLibre
+import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.modes.CameraMode
+import org.maplibre.android.location.modes.RenderMode
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
+import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.sources.GeoJsonSource
 
 private val LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -246,11 +247,11 @@ fun MapLibreComposable(
     val context   = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    val mapRef   = remember { mutableStateOf<MapboxMap?>(null) }
+    val mapRef   = remember { mutableStateOf<MapLibreMap?>(null) }
     val styleRef = remember { mutableStateOf<Style?>(null) }
 
     val mapView = remember {
-        Mapbox.getInstance(context)
+        MapLibre.getInstance(context)
         MapView(context)
     }
 
@@ -342,9 +343,9 @@ fun MapLibreComposable(
 }
 
 private fun poiEq(key: String, value: String) =
-    com.mapbox.mapboxsdk.style.expressions.Expression.eq(
-        com.mapbox.mapboxsdk.style.expressions.Expression.get(key),
-        com.mapbox.mapboxsdk.style.expressions.Expression.literal(value)
+    Expression.eq(
+        Expression.get(key),
+        Expression.literal(value)
     )
 
 // ── POI Legend Sheet ───────────────────────────────────────────────────────

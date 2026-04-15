@@ -17,8 +17,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,51 +33,81 @@ fun TacticalScannerOverlay(
     isProminent: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "scanner")
-    
-    // Subtle on all screens; slightly more visible on Home
-    val defaultAlpha = if (isProminent) 0.06f else 0.03f
-    val glowMulti = if (isProminent) 1.8f else 1.5f
-    val lineMulti = if (isProminent) 2f else 1.5f
 
-    val scanY by infiniteTransition.animateFloat(
+    val scanProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(7000, easing = LinearEasing),
+            animation = tween(5500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "scan_y"
+        label = "scan_progress"
     )
 
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val rustColor = Color(0xFFB46B3C) // hsl(18 50% 47%)
+    val grainStep = if (isProminent) 5.dp else 6.dp
+    val grainSize = if (isProminent) 1.4.dp else 1.1.dp
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .drawWithContent {
-                drawContent()
-                val lineY = size.height * scanY
-                val scanBrush = Brush.verticalGradient(
+            .drawWithCache {
+                val lineHeightPx = 2.dp.toPx()
+                val grainStepPx = grainStep.toPx()
+                val grainSizePx = grainSize.toPx()
+                val canvasWidth = size.width
+                val canvasHeight = size.height
+                val grainOffsets = buildList {
+                    var column = 0
+                    var x = 0f
+                    while (x < canvasWidth) {
+                        var row = 0
+                        var y = 0f
+                        while (y < canvasHeight) {
+                            if (grainValue(column, row) > 0.72f) {
+                                add(Offset(x, y))
+                            }
+                            row += 1
+                            y += grainStepPx
+                        }
+                        column += 1
+                        x += grainStepPx
+                    }
+                }
+                val scanBrush = Brush.horizontalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        primaryColor.copy(alpha = defaultAlpha),
-                        primaryColor.copy(alpha = defaultAlpha * glowMulti),
-                        primaryColor.copy(alpha = defaultAlpha),
+                        rustColor.copy(alpha = 0.3f),
+                        rustColor.copy(alpha = 0.3f),
                         Color.Transparent
-                    ),
-                    startY = lineY - 30.dp.toPx(),
-                    endY = lineY + 30.dp.toPx()
+                    )
                 )
-                drawRect(brush = scanBrush)
-                // Draw the bright scan line
-                drawLine(
-                    color = primaryColor.copy(alpha = defaultAlpha * lineMulti),
-                    start = Offset(0f, lineY),
-                    end = Offset(size.width, lineY),
-                    strokeWidth = 2.dp.toPx()
-                )
+
+                onDrawWithContent {
+                    drawContent()
+
+                    grainOffsets.forEach { offset ->
+                        drawRect(
+                            color = Color.White.copy(alpha = 0.04f),
+                            topLeft = offset,
+                            size = Size(grainSizePx, grainSizePx)
+                        )
+                    }
+
+                    val lineY = -lineHeightPx + ((size.height + lineHeightPx) * scanProgress)
+                    drawRect(
+                        brush = scanBrush,
+                        topLeft = Offset(0f, lineY),
+                        size = Size(size.width, lineHeightPx)
+                    )
+                }
             }
     )
+}
+
+private fun grainValue(column: Int, row: Int): Float {
+    val hash = (column * 73_856_093) xor (row * 19_349_663)
+    return ((hash and Int.MAX_VALUE) % 1_000) / 1_000f
 }
 
 @Composable

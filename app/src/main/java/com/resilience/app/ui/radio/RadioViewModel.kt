@@ -1,8 +1,6 @@
 package com.resilience.app.ui.radio
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
@@ -13,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.resilience.app.data.ai.OfflineVoiceAgent
 import com.resilience.app.data.ai.VoiceAgentState
 import com.resilience.app.data.audio.PttState
+import com.resilience.app.data.audio.RadioSignalPreview
 import com.resilience.app.data.audio.WalkieTalkieManager
 import com.resilience.app.data.mesh.BleState
 import com.resilience.app.data.mesh.MeshDiscoveryManager
@@ -88,8 +87,6 @@ class RadioViewModel @Inject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             meshDiscovery.startDiscovery(_uiState.value.currentFrequency)
         }
-        // Enable atmospheric radio static
-        walkieTalkie.setStaticEnabled(true)
     }
 
     // ── Manager collection ────────────────────────────────────────────────────
@@ -119,6 +116,8 @@ class RadioViewModel @Inject constructor(
                 val agentState   = values[6] as VoiceAgentState
                 val transcript   = values[7] as String
                 val response     = values[8] as String
+                val activeFrequency = _uiState.value.currentFrequency
+                val peersOnChannel = peerList.filter { it.frequency == activeFrequency }
 
                 _uiState.update { s ->
                     s.copy(
@@ -132,21 +131,36 @@ class RadioViewModel @Inject constructor(
                         agentState         = agentState,
                         lastTranscript     = transcript,
                         lastResponse       = response,
-                        statusLine         = buildStatusLine(s.currentFrequency, pttState, agentState, s.isAiMode)
+                        statusLine         = buildStatusLine(
+                            freq = s.currentFrequency,
+                            ptt = pttState,
+                            agent = agentState,
+                            aiMode = s.isAiMode,
+                            stationCount = peersOnChannel.size
+                        )
                     )
                 }
+
+                walkieTalkie.updateSignalMonitor(
+                    peersOnChannel.map { peer ->
+                        RadioSignalPreview(
+                            frequency = peer.frequency,
+                            callSign = peer.callSign,
+                            signalStrength = peer.signalStrength
+                        )
+                    }
+                )
 
                 // Automatically attempt to pair with the strongest Wi-Fi Aware peer on this channel.
                 // Guard: only attempt once per peer ID to avoid repeated requestNetwork() calls
                 // on every flow emission while a connection is already in progress.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val activeFrequency = _uiState.value.currentFrequency
-                    val peersOnChannel = peerList.filter {
+                    val wifiAwarePeersOnChannel = peersOnChannel.filter {
                         it.frequency == activeFrequency && it.transport == PeerTransport.WIFI_AWARE && it.handle != null
                     }
 
-                    if (peersOnChannel.isNotEmpty() && !walkieTalkie.hasPeerTransport) {
-                        val bestPeer = peersOnChannel.maxByOrNull { it.signalStrength }
+                    if (wifiAwarePeersOnChannel.isNotEmpty() && !walkieTalkie.hasPeerTransport) {
+                        val bestPeer = wifiAwarePeersOnChannel.maxByOrNull { it.signalStrength }
                         if (bestPeer != null && bestPeer.peerId != lastConnectionAttemptPeerId) {
                             lastConnectionAttemptPeerId = bestPeer.peerId
                             walkieTalkie.connectToPeer(bestPeer.handle!!)
@@ -163,10 +177,26 @@ class RadioViewModel @Inject constructor(
 
     fun onFrequencyChange(newFrequency: Int) {
         val clamped = newFrequency.coerceIn(1, 99)
+        val signalsOnChannel = _uiState.value.nearbyPeers
+            .filter { peer -> peer.frequency == clamped }
+            .map { peer ->
+                RadioSignalPreview(
+                    frequency = peer.frequency,
+                    callSign = peer.callSign,
+                    signalStrength = peer.signalStrength
+                )
+            }
         _uiState.update { it.copy(
             currentFrequency = clamped,
-            statusLine = buildStatusLine(clamped, it.pttState, it.agentState, it.isAiMode)
+            statusLine = buildStatusLine(
+                freq = clamped,
+                ptt = it.pttState,
+                agent = it.agentState,
+                aiMode = it.isAiMode,
+                stationCount = signalsOnChannel.size
+            )
         ) }
+        walkieTalkie.updateSignalMonitor(signalsOnChannel)
         // Reset peer link and connection-attempt guard so the new channel gets a fresh start
         lastConnectionAttemptPeerId = null
         walkieTalkie.resetPeerTransport()
@@ -193,18 +223,23 @@ class RadioViewModel @Inject constructor(
 
     @Suppress("MissingPermission")
     fun onPttPress() {
-        if (!_uiState.value.hasAudioPermission) return
-        if (!_uiState.value.isAiMode) {
+        val state = _uiState.value
+        if (!state.hasAudioPermission) return
+        if (state.pttState != PttState.IDLE || state.agentState != VoiceAgentState.IDLE) return
+        if (!state.isAiMode) {
             walkieTalkie.startTransmitting()
         }
         // AI mode: nothing on press, STT starts on release
     }
 
     fun onPttRelease() {
-        if (!_uiState.value.hasAudioPermission) return
-        if (_uiState.value.isAiMode) {
-            voiceAgent.startListening()
-        } else {
+        val state = _uiState.value
+        if (!state.hasAudioPermission) return
+        if (state.isAiMode) {
+            if (state.agentState == VoiceAgentState.IDLE) {
+                voiceAgent.startListening()
+            }
+        } else if (state.pttState == PttState.TRANSMITTING) {
             walkieTalkie.stopTransmitting(loopbackEnabled = true)
         }
     }
@@ -261,7 +296,6 @@ class RadioViewModel @Inject constructor(
     /** Refreshes all hardware availability + permission state. */
     fun refreshHardwareCapabilities() {
         val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-        val btAdapter   = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
         fun hasPermission(perm: String) =
             ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
@@ -300,7 +334,8 @@ class RadioViewModel @Inject constructor(
         freq: Int,
         ptt: PttState,
         agent: VoiceAgentState,
-        aiMode: Boolean
+        aiMode: Boolean,
+        stationCount: Int
     ): String = when {
         agent == VoiceAgentState.LISTENING   -> "AI LISTENING..."
         agent == VoiceAgentState.PROCESSING  -> "AI PROCESSING..."
@@ -308,6 +343,7 @@ class RadioViewModel @Inject constructor(
         ptt == PttState.TRANSMITTING         -> "TRANSMITTING — CH $freq"
         ptt == PttState.RECEIVING            -> "RECEIVING — CH $freq"
         aiMode                               -> "AI MODE — CH $freq"
+        stationCount > 0                     -> "MONITORING $stationCount STATION${if (stationCount == 1) "" else "S"} — CH ${freq.toString().padStart(2, '0')}"
         else                                 -> "STANDBY — CH ${freq.toString().padStart(2, '0')}"
     }
 

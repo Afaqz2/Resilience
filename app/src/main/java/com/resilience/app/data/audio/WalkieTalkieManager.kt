@@ -1,7 +1,6 @@
 package com.resilience.app.data.audio
 
 import android.Manifest
-import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -12,7 +11,6 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.resilience.app.data.mesh.WifiAwareTransport
 import com.resilience.app.data.mesh.MeshDiscoveryManager
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,13 +18,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.PI
+import kotlin.math.sin
 
 private const val TAG = "WalkieTalkie"
 
 enum class PttState { IDLE, TRANSMITTING, RECEIVING }
+
+data class RadioSignalPreview(
+    val frequency: Int,
+    val callSign: String,
+    val signalStrength: Int
+)
 
 /**
  * Push-To-Talk audio engine with Wi-Fi Aware UDP transport.
@@ -46,7 +53,6 @@ enum class PttState { IDLE, TRANSMITTING, RECEIVING }
  */
 @Singleton
 class WalkieTalkieManager @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val transport: WifiAwareTransport,
     private val meshDiscovery: MeshDiscoveryManager
 ) {
@@ -66,7 +72,11 @@ class WalkieTalkieManager @Inject constructor(
     private var audioTrack: AudioTrack?  = null
 
     private val scope = CoroutineScope(Dispatchers.IO)
-    private var staticJob: Job? = null
+    private var monitorJob: Job? = null
+    private val recordLock = Any()
+    private val playbackLock = Any()
+    @Volatile
+    private var monitoredSignals: List<RadioSignalPreview> = emptyList()
 
     // Local loopback buffer (used when no peers connected)
     private val capturedFrames = ArrayDeque<ByteArray>()
@@ -79,6 +89,7 @@ class WalkieTalkieManager @Inject constructor(
         transport.startReceiving { frame ->
             playIncomingFrame(frame)
         }
+        startSignalMonitor()
     }
 
     // ── PTT Press ────────────────────────────────────────────────────────────
@@ -90,39 +101,76 @@ class WalkieTalkieManager @Inject constructor(
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startTransmitting(onFrame: ((ByteArray) -> Unit)? = null) {
-        if (_pttState.value == PttState.TRANSMITTING) return
-        _pttState.value = PttState.TRANSMITTING
-        capturedFrames.clear()
-
-        val bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_IN, ENCODING)
-            .coerceAtLeast(FRAME_SIZE)
-
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE, CHANNEL_IN, ENCODING, bufferSize
-        ).also { recorder ->
-            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
-                _pttState.value = PttState.IDLE
+        val recorder = synchronized(recordLock) {
+            if (_pttState.value != PttState.IDLE || recordJob?.isActive == true) {
                 return
             }
-            recorder.startRecording()
+            capturedFrames.clear()
+
+            val bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_IN, ENCODING)
+                .coerceAtLeast(FRAME_SIZE)
+
+            val freshRecorder = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE, CHANNEL_IN, ENCODING, bufferSize
+            )
+
+            if (freshRecorder.state != AudioRecord.STATE_INITIALIZED) {
+                Log.w(TAG, "AudioRecord failed to initialize")
+                freshRecorder.release()
+                return
+            }
+
+            val started = runCatching { freshRecorder.startRecording() }.isSuccess
+            if (!started) {
+                Log.w(TAG, "AudioRecord failed to start recording")
+                freshRecorder.release()
+                return
+            }
+
+            audioRecord = freshRecorder
+            _pttState.value = PttState.TRANSMITTING
+            freshRecorder
         }
 
         recordJob = scope.launch {
             val buffer = ByteArray(FRAME_SIZE)
-            while (_pttState.value == PttState.TRANSMITTING) {
-                val bytesRead = audioRecord?.read(buffer, 0, buffer.size) ?: break
-                if (bytesRead > 0) {
-                    val frame = buffer.copyOf(bytesRead)
-                    if (hasPeerTransport) {
-                        // -- Opus encode here when concentus is available --
-                        // val encoded = opusEncoder.encode(frame)
-                        // transport.sendFrame(encoded)
-                        transport.sendFrame(frame)  // raw PCM for now
-                    } else {
-                        capturedFrames.addLast(frame)
+            while (isActive && _pttState.value == PttState.TRANSMITTING) {
+                val bytesRead = runCatching {
+                    recorder.read(buffer, 0, buffer.size)
+                }.getOrElse { error ->
+                    Log.w(TAG, "AudioRecord read failed", error)
+                    AudioRecord.ERROR_INVALID_OPERATION
+                }
+
+                if (bytesRead <= 0) {
+                    if (bytesRead == AudioRecord.ERROR_INVALID_OPERATION ||
+                        bytesRead == AudioRecord.ERROR_DEAD_OBJECT
+                    ) {
+                        break
                     }
-                    onFrame?.invoke(frame)
+                    delay(20)
+                    continue
+                }
+
+                val frame = buffer.copyOf(bytesRead)
+                if (hasPeerTransport) {
+                    // -- Opus encode here when concentus is available --
+                    // val encoded = opusEncoder.encode(frame)
+                    // transport.sendFrame(encoded)
+                    transport.sendFrame(frame)  // raw PCM for now
+                } else {
+                    capturedFrames.addLast(frame)
+                }
+                onFrame?.invoke(frame)
+            }
+
+            synchronized(recordLock) {
+                if (audioRecord === recorder) {
+                    audioRecord = null
+                }
+                if (recordJob?.isActive != true) {
+                    recordJob = null
                 }
             }
         }
@@ -132,11 +180,26 @@ class WalkieTalkieManager @Inject constructor(
 
     /** Called when PTT button is released. */
     fun stopTransmitting(loopbackEnabled: Boolean = true) {
-        _pttState.value = PttState.IDLE
-        recordJob?.cancel()
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
+        val recorderToRelease = synchronized(recordLock) {
+            if (_pttState.value != PttState.TRANSMITTING && audioRecord == null) {
+                return
+            }
+            _pttState.value = PttState.IDLE
+            recordJob?.cancel()
+            recordJob = null
+            audioRecord.also { audioRecord = null }
+        }
+
+        recorderToRelease?.let { recorder ->
+            runCatching {
+                if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    recorder.stop()
+                }
+            }.onFailure { error ->
+                Log.w(TAG, "Ignoring AudioRecord stop failure during PTT release", error)
+            }
+            runCatching { recorder.release() }
+        }
 
         if (loopbackEnabled && capturedFrames.isNotEmpty() && !hasPeerTransport) {
             playbackLoopback()
@@ -151,13 +214,12 @@ class WalkieTalkieManager @Inject constructor(
      */
     fun playIncomingFrame(frame: ByteArray) {
         if (_pttState.value == PttState.TRANSMITTING) return // half-duplex
-        _pttState.value = PttState.RECEIVING
+        if (_pttState.value != PttState.RECEIVING) {
+            _pttState.value = PttState.RECEIVING
+        }
 
         scope.launch {
-            // -- Opus decode here when concentus is available --
-            // val pcm = opusDecoder.decode(frame)
-            // getOrCreateTrack().write(pcm, 0, pcm.size)
-            getOrCreateTrack().write(frame, 0, frame.size)
+            writeToTrack(frame)
             _pttState.value = PttState.IDLE
         }
     }
@@ -167,9 +229,8 @@ class WalkieTalkieManager @Inject constructor(
     private fun playbackLoopback() {
         _pttState.value = PttState.RECEIVING
         scope.launch {
-            val track = getOrCreateTrack()
             for (frame in capturedFrames) {
-                track.write(frame, 0, frame.size)
+                writeToTrack(frame)
             }
             capturedFrames.clear()
             _pttState.value = PttState.IDLE
@@ -209,30 +270,16 @@ class WalkieTalkieManager @Inject constructor(
         }
     }
 
-    // ── Static Noise (Metro UX) ───────────────────────────────────────────────
+    // ── Station Monitor ───────────────────────────────────────────────────────
 
     /**
-     * Plays subtle white noise to simulate an open radio channel.
-     * Call with true to start, false to stop.
+     * Updates the station monitor with the strongest discovered signals on the
+     * currently tuned channel. The monitor stays silent when no signals exist.
      */
-    fun setStaticEnabled(enabled: Boolean) {
-        staticJob?.cancel()
-        if (!enabled) return
-
-        staticJob = scope.launch {
-            val track = getOrCreateTrack()
-            val staticBuffer = ByteArray(2048)
-            val random = java.util.Random()
-            
-            while (_pttState.value == PttState.IDLE) {
-                // Generate light static noise
-                for (i in staticBuffer.indices) {
-                    staticBuffer[i] = (random.nextInt(12) - 6).toByte()
-                }
-                track.write(staticBuffer, 0, staticBuffer.size)
-                kotlinx.coroutines.delay(20)
-            }
-        }
+    fun updateSignalMonitor(signals: List<RadioSignalPreview>) {
+        monitoredSignals = signals
+            .sortedByDescending { it.signalStrength }
+            .take(4)
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -249,7 +296,7 @@ class WalkieTalkieManager @Inject constructor(
     }
 
     fun release() {
-        staticJob?.cancel()
+        monitorJob?.cancel()
         recordJob?.cancel()
         audioRecord?.release()
         audioTrack?.release()
@@ -260,6 +307,65 @@ class WalkieTalkieManager @Inject constructor(
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private fun startSignalMonitor() {
+        if (monitorJob?.isActive == true) return
+
+        monitorJob = scope.launch {
+            while (isActive) {
+                val activeSignals = monitoredSignals
+                if (_pttState.value != PttState.IDLE || activeSignals.isEmpty()) {
+                    delay(180)
+                    continue
+                }
+
+                for (signal in activeSignals) {
+                    if (!isActive || _pttState.value != PttState.IDLE) break
+                    writeToTrack(synthesizeSignalBurst(signal))
+                    delay(90)
+                }
+
+                delay(500)
+            }
+        }
+    }
+
+    private fun synthesizeSignalBurst(signal: RadioSignalPreview): ByteArray {
+        val sampleCount = SAMPLE_RATE / 8 // 125 ms
+        val pcm = ByteArray(sampleCount * 2)
+        val strength = ((signal.signalStrength + 100).coerceIn(8, 55)) / 55f
+        val baseFrequency = 260 + (signal.frequency * 9)
+        val callSignBias = signal.callSign.sumOf { it.code } % 110
+        val toneHz = baseFrequency + callSignBias
+        val amplitude = (Short.MAX_VALUE * (0.08f + 0.18f * strength)).toInt()
+
+        for (sampleIndex in 0 until sampleCount) {
+            val envelope = when {
+                sampleIndex < sampleCount / 6 -> sampleIndex / (sampleCount / 6f)
+                sampleIndex > sampleCount * 5 / 6 -> (sampleCount - sampleIndex) / (sampleCount / 6f)
+                else -> 1f
+            }
+            val sweep = 1f + (sampleIndex / sampleCount.toFloat()) * 0.035f
+            val sampleValue = (
+                sin(2 * PI * toneHz * sweep * sampleIndex / SAMPLE_RATE) *
+                    amplitude * envelope
+                ).toInt().toShort()
+            pcm[sampleIndex * 2] = (sampleValue.toInt() and 0xFF).toByte()
+            pcm[sampleIndex * 2 + 1] = ((sampleValue.toInt() shr 8) and 0xFF).toByte()
+        }
+
+        return pcm
+    }
+
+    private fun writeToTrack(frame: ByteArray) {
+        synchronized(playbackLock) {
+            runCatching {
+                getOrCreateTrack().write(frame, 0, frame.size)
+            }.onFailure { error ->
+                Log.w(TAG, "AudioTrack write failed", error)
+            }
+        }
+    }
 
     private fun getOrCreateTrack(): AudioTrack {
         audioTrack?.let { if (it.state == AudioTrack.STATE_INITIALIZED) return it }

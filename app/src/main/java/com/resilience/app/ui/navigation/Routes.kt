@@ -9,6 +9,7 @@ package com.resilience.app.ui.navigation
 object Routes {
     const val DASHBOARD       = "dashboard"
     const val PLAYBOOK_LIST   = "playbook_list"
+    const val DIY_PLAYBOOKS   = "diy_playbooks"
     const val PLAYBOOK_DETAIL = "playbook_detail/{playbookId}"
     const val FAMILY_VAULT    = "family_vault"
     const val MAPS            = "maps"
@@ -17,6 +18,7 @@ object Routes {
     const val AI_CHAT         = "ai_chat"
     const val ALERTS          = "alerts"
     const val SETTINGS        = "settings"
+    const val EMERGENCY       = "emergency"
 
     fun playbookDetail(id: String) = "playbook_detail/$id"
 }

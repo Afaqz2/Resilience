@@ -25,12 +25,34 @@ import com.resilience.app.ui.theme.SafeReachDarkGray
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybookListScreen(
+    title: String = "Survival Playbooks",
+    subtitle: String = "Fully offline · Tap to read",
+    initialCategory: String? = null,
+    includedCategories: Set<String>? = null,
+    excludedCategories: Set<String> = emptySet(),
+    showAllChip: Boolean = true,
     onPlaybookClick: (PlaybookEntity) -> Unit,
     onBack: () -> Unit,
     viewModel: PlaybookViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val playbooks by viewModel.filteredPlaybooks.collectAsState()
+    val visibleCategories = remember(uiState.categories, includedCategories, excludedCategories) {
+        uiState.categories.filter { category ->
+            (includedCategories == null || category in includedCategories) &&
+                category !in excludedCategories
+        }
+    }
+    val visiblePlaybooks = remember(playbooks, includedCategories, excludedCategories) {
+        playbooks.filter { playbook ->
+            (includedCategories == null || playbook.category in includedCategories) &&
+                playbook.category !in excludedCategories
+        }
+    }
+
+    LaunchedEffect(initialCategory) {
+        viewModel.selectCategory(initialCategory)
+    }
 
     Scaffold(
         topBar = {
@@ -38,12 +60,12 @@ fun PlaybookListScreen(
                 title = {
                     Column {
                         Text(
-                            "Survival Playbooks",
+                            title,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
                         Text(
-                            "Fully offline · Tap to read",
+                            subtitle,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -65,28 +87,30 @@ fun PlaybookListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // ---- Category Filter Chips ----
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    CategoryChip(
-                        label = "All",
-                        selected = uiState.selectedCategory == null,
-                        onClick = { viewModel.selectCategory(null) }
-                    )
-                }
-                items(uiState.categories) { cat ->
-                    CategoryChip(
-                        label = cat,
-                        selected = uiState.selectedCategory == cat,
-                        onClick = { viewModel.selectCategory(cat) }
-                    )
+            if (showAllChip || visibleCategories.size > 1) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (showAllChip) {
+                        item {
+                            CategoryChip(
+                                label = "All",
+                                selected = uiState.selectedCategory == null,
+                                onClick = { viewModel.selectCategory(null) }
+                            )
+                        }
+                    }
+                    items(visibleCategories) { cat ->
+                        CategoryChip(
+                            label = cat,
+                            selected = uiState.selectedCategory == cat,
+                            onClick = { viewModel.selectCategory(cat) }
+                        )
+                    }
                 }
             }
 
-            // ---- Playbook Cards ----
             if (uiState.isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -96,7 +120,7 @@ fun PlaybookListScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(playbooks, key = { it.id }) { playbook ->
+                    items(visiblePlaybooks, key = { it.id }) { playbook ->
                         PlaybookCard(
                             playbook = playbook,
                             onClick = { onPlaybookClick(playbook) }
@@ -234,5 +258,6 @@ private fun categoryIcon(category: String) = when (category.lowercase()) {
     "shelter"   -> Icons.Default.House
     "go-bag"    -> Icons.Default.Backpack
     "water"     -> Icons.Default.WaterDrop
+    "diy"       -> Icons.Default.Handyman
     else        -> Icons.Default.MenuBook
 }

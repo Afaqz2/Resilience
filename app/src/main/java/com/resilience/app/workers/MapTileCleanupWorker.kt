@@ -2,11 +2,11 @@ package com.resilience.app.workers
 
 import android.content.Context
 import androidx.work.*
-import com.mapbox.mapboxsdk.Mapbox
-import com.mapbox.mapboxsdk.offline.OfflineManager
-import com.mapbox.mapboxsdk.offline.OfflineRegion
 import com.resilience.app.data.db.ResilienceDatabase
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.maplibre.android.MapLibre
+import org.maplibre.android.offline.OfflineManager
+import org.maplibre.android.offline.OfflineRegion
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -62,7 +62,7 @@ class MapTileCleanupWorker(
             if (staleRegions.isEmpty()) return Result.success()
 
             // Init MapLibre so OfflineManager is accessible
-            Mapbox.getInstance(context)
+            MapLibre.getInstance(context)
             val offlineManager = OfflineManager.getInstance(context)
             val liveRegions = listRegions(offlineManager)
 

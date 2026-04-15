@@ -64,5 +64,71 @@
     "lastVerifiedDate": "2024-03-01",
     "iconName": "Favorite",
     "accentColor": "#C62828"
+  },
+  {
+    "id": "diy_water_prefilter",
+    "category": "DIY",
+    "title": "Build a Bottle Water Pre-Filter",
+    "summary": "Make a quick pre-filter from cloth, charcoal, sand, and gravel before boiling or disinfecting.",
+    "contentMarkdown": "## Build a Bottle Water Pre-Filter\n\n> **Important**: This removes sediment and some bad taste. It does **not** make water safe on its own. Always boil or disinfect afterward.\n\n### What You Need\n- Plastic bottle or cut container\n- Clean cloth\n- Crushed charcoal from a clean wood fire\n- Sand\n- Small gravel or pebbles\n- Second clean container\n\n### Assembly\n1. Cut the bottom off the bottle.\n2. Put cloth in the neck so material cannot fall through.\n3. Add layers from bottom to top: **cloth → charcoal → sand → gravel**.\n4. Pour cloudy water in slowly.\n5. Catch the filtered water in a clean container.\n6. Run it through again if still dirty.\n\n### Finish the Job\n- **Boil** the filtered water for at least 1 minute.\n- Or use bleach / purification tablets if available.\n\n### Field Notes\n- Replace the charcoal and cloth if the filter smells bad.\n- Keep the clean container separate from dirty tools.\n- Do not use charcoal from painted, treated, or plastic-contaminated materials.",
+    "sourceOrganisation": "WHO / Resilience Review",
+    "lastVerifiedDate": "2026-04-13",
+    "iconName": "Handyman",
+    "accentColor": "#D4A017"
+  },
+  {
+    "id": "diy_debris_shelter",
+    "category": "DIY",
+    "title": "Build a Debris Shelter from Scratch",
+    "summary": "A low-tool shelter that traps body heat using branches, leaves, and dry debris.",
+    "contentMarkdown": "## Build a Debris Shelter from Scratch\n\n### Choose the Site\n- Pick ground above runoff and away from dead branches.\n- Face the opening away from wind.\n- Avoid riverbanks that can flood overnight.\n\n### Frame\n1. Find a strong ridge pole about as long as your body.\n2. Lean it on a stump, rock, or forked branch.\n3. Add ribs along both sides using smaller branches.\n4. Keep the shelter just big enough for you to crawl into.\n\n### Insulate\n- Pile **dry leaves, grass, pine needles, or reeds** over the frame.\n- Aim for at least **arm-thick insulation** on top.\n- Add a deep layer of debris inside so you are not lying on bare ground.\n\n### Door\n- Use a jacket, bag, branches, or bundled grass to block the entrance.\n- Leave a small gap for air.\n\n### Field Notes\n- Insulation underneath matters as much as the roof.\n- Smaller shelter = warmer shelter.\n- Replace wet debris quickly; wet insulation loses heat fast.",
+    "sourceOrganisation": "Ready.gov / Resilience Review",
+    "lastVerifiedDate": "2026-04-13",
+    "iconName": "Handyman",
+    "accentColor": "#8D6E63"
+  },
+  {
+    "id": "diy_twig_stove",
+    "category": "DIY",
+    "title": "Make a Simple Twig Stove",
+    "summary": "Create a compact cooking fire from scrap metal cans when fuel is limited.",
+    "contentMarkdown": "## Make a Simple Twig Stove\n\n> **Warning**: Only use outdoors on bare soil or stone. Scrap metal edges are sharp and fire can spread quickly.\n\n### What You Need\n- 1 large metal can\n- 1 smaller metal can or inner sleeve (optional)\n- Can opener, nail, or punch tool\n- Dry pencil-thin sticks\n\n### Build\n1. Punch air holes around the lower edge of the large can.\n2. Cut a thumb-sized feed opening near the base.\n3. If you have a second can, place it inside to create a narrow burn chamber.\n4. Rest a pot above the opening using tent pegs, wire, or three stones.\n\n### Use\n- Start with dry tinder.\n- Feed small sticks slowly through the side opening.\n- Keep flames short and controlled.\n- Boil water or heat food with the smallest fire that works.\n\n### Safety\n- Keep water or dirt nearby to kill the fire.\n- Never use indoors or in a sealed shelter.\n- Let the can cool fully before moving it.",
+    "sourceOrganisation": "Resilience Field Guide",
+    "lastVerifiedDate": "2026-04-13",
+    "iconName": "Handyman",
+    "accentColor": "#B85C38"
+  },
+  {
+    "id": "diy_cordage",
+    "category": "DIY",
+    "title": "Twist Emergency Cordage from Plant Fibers",
+    "summary": "Make usable cord from bark, grass, fabric strips, or plastic bags.",
+    "contentMarkdown": "## Twist Emergency Cordage from Plant Fibers\n\n### Good Materials\n- Inner bark from flexible plants\n- Long grass or reeds\n- Torn cloth strips\n- Plastic bag strips for water-resistant cord\n\n### Two-Ply Method\n1. Split material into two bundles.\n2. Twist the first bundle away from you.\n3. Cross it over the second bundle.\n4. Twist the new outside bundle away from you.\n5. Cross again.\n6. Repeat until you have a cord.\n\n### Strength Tips\n- Keep tension constant.\n- Add new fibers before the old ones end.\n- Reverse-wrap a second finished cord with another for extra strength.\n\n### Good Uses\n- Shelter lashings\n- Gear repair\n- Splints\n- Hanging food or wet clothing\n\n### Do Not Use For\n- Climbing\n- Lifeline rescue loads\n- Heavy towing",
+    "sourceOrganisation": "Resilience Field Guide",
+    "lastVerifiedDate": "2026-04-13",
+    "iconName": "Handyman",
+    "accentColor": "#6D4C41"
+  },
+  {
+    "id": "diy_phone_power",
+    "category": "DIY",
+    "title": "Emergency Phone Charging Without Grid Power",
+    "summary": "Safe fallback options for keeping a phone alive when mains power is gone.",
+    "contentMarkdown": "## Emergency Phone Charging Without Grid Power\n\n### Best Options First\n1. Use a charged power bank.\n2. Use a vehicle USB outlet or 12V adapter.\n3. Use a solar panel **with a USB regulator or power bank in between**.\n4. Use a hand-crank radio or emergency generator with USB output.\n\n### Salvage Rules\n- Prefer **devices that already output USB 5V**.\n- Use the phone's normal cable whenever possible.\n- Charge the phone while switched off or in airplane mode.\n- Warm the phone in cold weather before charging.\n\n### If You Salvage Battery Cells\n- Do **not** connect loose wires directly to your phone.\n- Do **not** charge from homemade lemon, saltwater, or coin cells; they are too weak and unstable for modern phones.\n- Do **not** short lithium cells, puncture them, or combine random batteries.\n- Only use scavenged cells with a proper charger board / regulated USB module if you know exactly what you are doing.\n\n### Battery-Saving Wins\n- Airplane mode on\n- Screen brightness near minimum\n- Battery saver on\n- GPS, Bluetooth, Wi-Fi off unless needed\n- Download maps and messages before power is low",
+    "sourceOrganisation": "Ready.gov / Resilience Review",
+    "lastVerifiedDate": "2026-04-13",
+    "iconName": "Handyman",
+    "accentColor": "#455A64"
+  },
+  {
+    "id": "diy_signal_marker",
+    "category": "DIY",
+    "title": "Build a Ground Signal Marker",
+    "summary": "Use rocks, cloth, branches, or scrap to make rescue signals visible from far away.",
+    "contentMarkdown": "## Build a Ground Signal Marker\n\n### Best Shapes\n- **SOS**\n- Large **X** for assistance needed\n- Straight arrow toward your shelter or route\n\n### Materials\n- Stones\n- Logs or branches\n- Bright cloth\n- Reflective foil, mirrors, or metal sheet scraps\n\n### Build Method\n1. Choose open ground with maximum contrast.\n2. Make each line at least **body-length wide** if you can.\n3. Use straight edges and clean spacing.\n4. Anchor cloth so wind cannot move it.\n5. Add reflective material where sunlight may hit it.\n\n### Improve Visibility\n- Place next to open fields, roads, shorelines, or rooftops.\n- Refresh after wind or rain.\n- Pair with three whistle blasts or three fire/smoke signals when aircraft or rescuers are nearby.\n\n### Avoid\n- Small symbols only visible from nearby\n- Building near flammable brush if using smoke signals\n- Blocking your own escape route",
+    "sourceOrganisation": "Resilience Field Guide",
+    "lastVerifiedDate": "2026-04-13",
+    "iconName": "Handyman",
+    "accentColor": "#F9A825"
   }
 ]

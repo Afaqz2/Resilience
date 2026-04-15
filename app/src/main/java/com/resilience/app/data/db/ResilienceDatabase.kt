@@ -13,13 +13,12 @@ import com.resilience.app.data.db.entity.FamilyMemberEntity
 import com.resilience.app.data.db.entity.MeetingPointEntity
 import com.resilience.app.data.db.entity.OfflineRegionEntity
 import com.resilience.app.data.db.entity.PlaybookEntity
-import net.sqlcipher.database.SQLiteDatabase
-import net.sqlcipher.database.SupportFactory
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
  * Central Room database for the Resilience app.
  *
- * - Encrypted at rest via SQLCipher (SupportFactory).
+ * - Encrypted at rest via SQLCipher (SupportOpenHelperFactory).
  * - Version is bumped on every schema change; migration strategy TBD in Sprint 3+.
  *
  * Version history:
@@ -56,9 +55,9 @@ abstract class ResilienceDatabase : RoomDatabase() {
         private const val DB_PASSPHRASE = "resilience_secure_key_v1"
 
         fun create(context: Context): ResilienceDatabase {
-            SQLiteDatabase.loadLibs(context.applicationContext)
-            val passphrase = SQLiteDatabase.getBytes(DB_PASSPHRASE.toCharArray())
-            val factory = SupportFactory(passphrase)
+            System.loadLibrary("sqlcipher")
+            val passphrase = DB_PASSPHRASE.toByteArray(Charsets.UTF_8)
+            val factory = SupportOpenHelperFactory(passphrase)
 
             return Room.databaseBuilder(
                 context.applicationContext,
